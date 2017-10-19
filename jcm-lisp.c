@@ -6,12 +6,12 @@
 #define MAX_BUFFER_SIZE 100
 
 typedef enum {
-    NUMBER,
+    FIXNUM,
     STRING
 } obj_type;
 
-struct number {
-    long value;
+struct fixnum {
+    int value;
 };
 
 struct string {
@@ -22,7 +22,7 @@ struct object {
     obj_type type;
 
     union {
-        struct number num;
+        struct fixnum num;
         struct string str;
     } data;
 };
@@ -40,6 +40,14 @@ object *make_string(char *str) {
     obj->data.str.text = malloc(strlen(str));
     strncpy(obj->data.str.text, str, strlen(str));
     printf("got here 2\n");
+    return obj;
+}
+
+object *make_fixnum(int n) {
+    object *obj = new_object();
+    obj->type = FIXNUM;
+    obj->data.num.value = n;//malloc(sizeof(int));
+    printf("make fixnum\n");
     return obj;
 }
 
@@ -64,13 +72,12 @@ void skip_whitespace(FILE *in) {
     ungetc(c, in);
 }
 
-object *read(FILE *in) {
+object *read_string(FILE *in) {
     char buffer[MAX_BUFFER_SIZE];
     char c;
     int i = 0;
 
-    skip_whitespace(in);
-
+    printf("read string");
     while ((c = getc(in)) != '\n' && i < MAX_BUFFER_SIZE - 1) {
         buffer[i++] = c;
     }
@@ -80,26 +87,74 @@ object *read(FILE *in) {
     return make_string(buffer);
 }
 
+object *read_number(FILE *in) {
+    int number = 0;
+    char c;
+
+    printf("read number");
+    while (isdigit(c = getc(in))) {
+        number *= 10;
+        number += (int)c - 48;
+    }
+
+    ungetc(c, in);
+
+    return make_fixnum(number);
+}
+
+object *read(FILE *in) {
+    char c;
+    object *obj;
+
+    skip_whitespace(in);
+
+    c = getc(in);
+    ungetc(c, in);
+
+    printf("check char %c\n", c);
+    if (isdigit((int)c)) {
+        obj = read_number(in);
+    } else {
+        obj = read_string(in);
+    }
+
+    return obj;
+}
+
 object *eval(object *obj, object *env) {
     printf("got here 3xx\n");
     return obj;
 }
 
-void print(object *obj, object *env) {
-    printf("got here 3\n");
+void print_string(object *obj) {
+    printf("got here 5\n");
     char *str = obj->data.str.text;
     int len = strlen(str);
     int i = 0;
+    printf("got here 6\n");
+
+    putchar('"');
+    while (i < len) {
+        putc(*str++, stdout);
+        i++;
+    }
+    putchar('"');
+}
+
+void print_fixnum(object *obj) {
     printf("got here 4\n");
+    printf("%d", obj->data.num.value);
+}
+
+void print(object *obj, object *env) {
+    printf("got here 3\n");
 
     switch (obj->type) {
         case STRING:
-            putchar('"');
-            while (i < len) {
-                putc(*str++, stdout);
-                i++;
-            }
-            putchar('"');
+            print_string(obj);
+            break;
+        case FIXNUM:
+            print_fixnum(obj);
             break;
         default:
             break;
