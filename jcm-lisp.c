@@ -136,27 +136,29 @@ object *read_list(FILE *in) {
     char c = getc(in);          /* Should be '(' */
 
     printf("read list\n");
-    object *head = read2(in);
+    object *list = make_cell();
+    object *obj = read2(in);
     //printf("Head\n");
-    //print(head, NULL);
+    //print(list, NULL);
 
-    //object *obj = make_cell();
-    obj->data.cell.head = head;
-
-    object *tail = NULL;
+    list->data.cell.head = obj;
+    object *tail = make_cell();
+    list->data.cell.tail = tail;
 
     do {
         printf("Read tail\n");
         //ungetc(c, in);
-        tail = read2(in);
+        object *tail = make_cell();
+        tail->data.cell.head = read2(in);
         obj->data.cell.tail = tail;
+        skip_whitespace(in);
     } while ((c = getc(in)) != ')');
 
     //printf("Tail\n");
     //print(tail, NULL);
     //printf("populating cell\n");
     
-    return obj;
+    return list;
 }
 
 object *read2(FILE *in) {
@@ -213,7 +215,7 @@ void print_fixnum(object *obj) {
 void print(object *obj, object *env);
 
 void print_cell(object *obj, object *env) {
-    printf("Cell:\n");
+    //printf("Cell:\n");
     printf("(");
     if (obj->data.cell.head->type != NIL) {
         //printf("Head:\n");
