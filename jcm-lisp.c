@@ -252,19 +252,19 @@ object *read_all(FILE *in) {
     //printf("Read found %c\n", c);
     
     //printf("check char %c\n", c);
-    if (isdigit((int)c)) {
-        obj = read_number(in);
-    } else if ((int)c == '"') {
-        obj = read_string(in);
-    } else if (isalpha((int)c)) {
-        obj = read_symbol(in);
+    if (c == '\'') {
+        getc(in);
+        obj = cons(quote, read_all(in));
     } else if (c == '(') {
         obj = read_list(in);
     } else if (c == ')') {
         obj = make_nil();
-    } else if (c == '\'') {
-        getc(in);
-        obj = cons(quote, read_all(in));
+    } else if ((int)c == '"') {
+        obj = read_string(in);
+    } else if (isdigit((int)c)) {
+        obj = read_number(in);
+    } else if (isalpha((int)c)) {
+        obj = read_symbol(in);
     } else {
         getc(in);               /* Not used, so discard. */
         obj = make_nil();
@@ -310,10 +310,12 @@ void print_cell(object *head, object *env) {
 
     for (;;) {
         if (obj->data.cell.head != NULL &&
-            obj->data.cell.head->type != NIL) {
+            obj->data.cell.head->type != NIL &&
+            car(obj) != quote) {
             //printf("Head type %d\n", obj->data.cell.head->type);
             //printf("Head value:\n");
             print(obj->data.cell.head, env);
+            printf(" ");
         } else {
             //printf("Found head\n");
             //break;
@@ -323,7 +325,7 @@ void print_cell(object *head, object *env) {
             obj->data.cell.tail->type != NIL) {
             //printf("\nTail type %d\n", obj->data.cell.tail->type);
             //printf("Tail value:\n");
-            printf(" ");
+            //printf(" ");
             //print(obj->data.cell.tail, env);
         } else {
             //printf("Found tail\n");
