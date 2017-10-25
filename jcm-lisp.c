@@ -119,17 +119,18 @@ object *make_symbol(char *name) {
 
 object *intern_symbol(char *name, object *env) {
     object *obj = make_symbol(name);
-    globals = cons(obj, globals);
+    object *tmp = cons(obj, globals->data.cell.tail);
+    globals->data.cell.tail = tmp;
     //printf("make symbol %s\n", name);
     return obj;
 }
 
 object *lookup_symbol(char *name, object *env) {
-    object *obj = car(env);
+    object *obj = cdr(env);
 
     while (obj != NULL) {
-        if (strcmp(obj->data.symbol.name, name) == 0) {
-            return obj;
+        if (strcmp(car(obj)->data.symbol.name, name) == 0) {
+            return car(obj);
         }
 
         //printf("%s undefined.\n", name);
@@ -200,7 +201,7 @@ object *read_symbol(FILE *in, object *env) {
 
     //printf("Bui 1 %d\n", i);
     buffer[i] = '\0';
-    return intern_symbol(buffer, env);
+    return lookup_symbol(buffer, env);
 }
 
 object *read_number(FILE *in) {
