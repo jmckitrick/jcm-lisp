@@ -49,6 +49,7 @@ struct object {
 
 object *globals;
 object *quote;
+object *nil;
 
 object *car(object *obj) {
     if (obj != NULL &&
@@ -92,8 +93,8 @@ object *cons(object *head, object *tail) {
 object *make_string(char *str) {
     object *obj = new_object();
     obj->type = STRING;
-    obj->data.str.text = malloc(strlen(str));
-    strncpy(obj->data.str.text, str, strlen(str));
+    obj->data.str.text = strdup(str);//malloc(strlen(str));
+    //strncpy(obj->data.str.text, str, strlen(str));
     //printf("make string\n");
     return obj;
 }
@@ -106,25 +107,35 @@ object *make_fixnum(int n) {
     return obj;
 }
 
-object *intern_symbol(char *name) {
-    object *obj = car(globals);
+object *make_symbol(char *name) {
+    object *obj = new_object();
+    obj = new_object();
+    obj->type = SYMBOL;
+    obj->data.symbol.name = malloc(strlen(name));
+    strncpy(obj->data.symbol.name, name, strlen(name));
+    obj->data.symbol.value = make_string("baadf00d");
+    return obj;
+}
+
+object *intern_symbol(char *name, object *env) {
+    object *obj = make_symbol(name);
+    globals = cons(obj, globals);
+    //printf("make symbol %s\n", name);
+    return obj;
+}
+
+object *lookup_symbol(char *name, object *env) {
+    object *obj = car(env);
 
     while (obj != NULL) {
         if (strcmp(obj->data.symbol.name, name) == 0) {
             return obj;
         }
 
-        printf("%s undefined.\n", name);
+        //printf("%s undefined.\n", name);
         obj = cdr(obj);
     }
-
-    obj = new_object();
-    obj->type = SYMBOL;
-    obj->data.symbol.name = malloc(strlen(name));
-    strncpy(obj->data.symbol.name, name, strlen(name));
-    globals = cons(obj, globals);
-    //printf("make symbol\n");
-    return obj;
+    return intern_symbol(name, env);
 }
 
 object *make_nil() {
@@ -153,8 +164,8 @@ void skip_whitespace(FILE *in) {
         }
 
         if (!is_whitespace(c)) {
-            done = 1;
             ungetc(c, in);
+            done = 1;
         }
     }
     //printf("Got %c %d\n", c, c);
@@ -176,7 +187,7 @@ object *read_string(FILE *in) {
     return make_string(buffer);
 }
 
-object *read_symbol(FILE *in) {
+object *read_symbol(FILE *in, object *env) {
     char buffer[MAX_BUFFER_SIZE];
     int i = 0;
     char c;
@@ -189,7 +200,7 @@ object *read_symbol(FILE *in) {
 
     //printf("Bui 1 %d\n", i);
     buffer[i] = '\0';
-    return intern_symbol(buffer);
+    return intern_symbol(buffer, env);
 }
 
 object *read_number(FILE *in) {
@@ -207,10 +218,10 @@ object *read_number(FILE *in) {
     return make_fixnum(number);
 }
 
-object *read_all(FILE *in);
+object *read_all(FILE *, object *);
 void print(object *, object *);
 
-object *read_list(FILE *in) {
+object *read_list(FILE *in, object *env) {
     char c = getc(in);          /* Should be '(' */
 
     //printf("read list\n");
@@ -219,14 +230,14 @@ object *read_list(FILE *in) {
     //printf("Head\n");
     //print(head, NULL);
 
-    head->data.cell.head = read_all(in);
+    head->data.cell.head = read_all(in, env);
 
     while ((c = getc(in)) != ')') {
         //printf("Read tail\n");
         ungetc(c, in);
         tail->data.cell.tail = make_cell();
         tail = tail->data.cell.tail;
-        tail->data.cell.head = read_all(in);
+        tail->data.cell.head = read_all(in, env);
         skip_whitespace(in);
     };
 
@@ -240,7 +251,14 @@ object *read_list(FILE *in) {
     return head;
 }
 
-object *read_all(FILE *in) {
+// XXX Review these:
+// strchr
+// strdup
+// strcmp
+// strspn
+// atoi
+
+object *read_all(FILE *in, object *env) {
     char c;
     object *obj = NULL;
 
@@ -254,29 +272,92 @@ object *read_all(FILE *in) {
     //printf("check char %c\n", c);
     if (c == '\'') {
         getc(in);
-        obj = cons(quote, read_all(in));
+        obj = cons(quote, read_all(in, env));
     } else if (c == '(') {
-        obj = read_list(in);
-    } else if (c == ')') {
-        obj = make_nil();
+        obj = read_list(in, env);
     } else if ((int)c == '"') {
         obj = read_string(in);
     } else if (isdigit((int)c)) {
         obj = read_number(in);
     } else if (isalpha((int)c)) {
-        obj = read_symbol(in);
+        obj = read_symbol(in, env);
     } else {
-        getc(in);               /* Not used, so discard. */
-        obj = make_nil();
+        printf("Error at %c\n", c);
     }
 
     //sleep(1);
     return obj;
 }
 
-object *eval(object *obj, object *env) {
-    //printf("Eval\n");
-    return obj;
+object *eval_symbol(object *obj, object *env) {
+    object *result = NULL;
+
+    if (strcmp(obj->data.symbol.name, "define") == 0)
+    {
+    }
+    else if (strcmp(obj->data.symbol.name, "setq") == 0)
+    {
+    }
+    else
+    {
+        result = lookup_symbol(obj->data.symbol.name, env);
+        result = result->data.symbol.value;
+    }
+
+    return result;
+}
+
+object *eval_list(object *obj, object *env) {
+    object *result = NULL;
+
+    if (strcmp(car(obj)->data.symbol.name, "define") == 0)
+    {
+        object *var = lookup_symbol(car(car(obj))->data.symbol.name, env);
+        var->data.symbol.value = car(car(car(obj)));
+    }
+    else if (strcmp(car(obj)->data.symbol.name, "setq") == 0)
+    {
+        object *cell = obj;
+        //object *cell_setq = car(cell); /* should be symbol named setq */
+        cell = cdr(cell);
+        object *cell_symbol = car(cell);
+        cell = cdr(cell);
+        object *cell_value = car(cell);
+
+        char *symbol_name = cell_symbol->data.symbol.name;
+        result = lookup_symbol(symbol_name, env);
+        result->data.symbol.value = cell_value;
+    }
+    else
+    {
+        printf("Unknown function %s\n", car(obj)->data.symbol.name);
+    }
+
+    return result;
+}
+
+object *eval(object *obj, object *env)
+{
+    object *result = NULL;
+
+    switch (obj->type)
+    {
+        case CELL:
+            result = eval_list(obj, env);
+            break;
+        case STRING:
+        case FIXNUM:
+            result = obj;
+            break;
+        case SYMBOL:
+            result = eval_symbol(obj, env);
+            break;
+        default:
+            printf("\nUnknown object: %d\n", obj->type);
+            break;
+    }
+
+    return result;
 }
 
 void print_string(object *obj) {
@@ -292,11 +373,12 @@ void print_string(object *obj) {
         i++;
     }
     putchar('"');
+    putchar(' ');
 }
 
 void print_fixnum(object *obj) {
     //printf("Fixnum\n");
-    printf("%d", obj->data.num.value);
+    printf("%d ", obj->data.num.value);
 }
 
 void print(object *obj, object *env);
@@ -309,13 +391,15 @@ void print_cell(object *head, object *env) {
     object *obj = head;
 
     for (;;) {
-        if (obj->data.cell.head != NULL &&
-            obj->data.cell.head->type != NIL &&
-            car(obj) != quote) {
+        if (obj->data.cell.head != NULL //&&
+            //obj->data.cell.head->type != NIL &&
+            //car(obj) != quote
+            )
+        {
             //printf("Head type %d\n", obj->data.cell.head->type);
             //printf("Head value:\n");
-            print(obj->data.cell.head, env);
-            printf(" ");
+            print(car(obj), env);
+            //printf(" ");
         } else {
             //printf("Found head\n");
             //break;
@@ -334,6 +418,7 @@ void print_cell(object *head, object *env) {
         obj = obj->data.cell.tail;
         //sleep(1);
     }
+    putchar('\b');
     printf(") ");
 }
 
@@ -344,6 +429,9 @@ void print(object *obj, object *env) {
 
     if (obj != NULL) {
         switch (obj->type) {
+            case CELL:
+                print_cell(obj, env);
+                break;
             case STRING:
                 print_string(obj);
                 break;
@@ -355,27 +443,27 @@ void print(object *obj, object *env) {
                 //print(cdr(obj), env);
                 //print(cadr(obj), env);
                 //printf("%s", obj->data.symbol.name);
-                printf("%s", intern_symbol(obj->data.symbol.name)->data.symbol.name);
+                if (obj != quote) {
+                    printf("%s ", lookup_symbol(obj->data.symbol.name, env)->data.symbol.name);
+                }
                 break;
-            case CELL:
-                print_cell(obj, env);
-                break;
-            case NIL:
-                printf("NIL");
-                break;
+            /* case NIL: */
+            /*     printf("NIL"); */
+            /*     break; */
             default:
-                printf("Unknown object: %d\n", obj->type);
+                printf("\nUnknown object: %d\n", obj->type);
                 break;
         }
     } else {
-        printf("NULL");
+        printf("NULL ");
     }
 }
 
 int main (int argc, char* argv[])
 {
-    globals = NULL;
-    quote = intern_symbol("quote");
+    globals = make_cell();
+    quote = intern_symbol("quote", globals);
+    nil = intern_symbol("nil", globals);
     
     printf("Welcome to JCM-LISP. "
            "Use ctrl-c to exit.\n");
@@ -383,7 +471,7 @@ int main (int argc, char* argv[])
     //int i = 0;
     while (1) {
         printf("> ");
-        print(eval(read_all(stdin), NULL), NULL);
+        print(eval(read_all(stdin, globals), globals), globals);
         printf("\n");
     }
 
