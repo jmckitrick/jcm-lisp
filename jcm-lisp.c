@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <assert.h>
 
 #define MAX_BUFFER_SIZE 100
 
@@ -76,6 +77,8 @@ int is_cell(object *obj)
 
 object *globals;
 object *quote;
+object *define;
+object *setq;
 object *nil;
 
 object *car(object *obj) {
@@ -146,8 +149,8 @@ object *make_symbol(char *name) {
 
 object *intern_symbol(char *name, object *env) {
     object *obj = make_symbol(name);
-    object *tmp = cons(obj, globals->data.cell.tail);
-    globals->data.cell.tail = tmp;
+    object *tmp = cons(obj, env->data.cell.tail);
+    env->data.cell.tail = tmp;
     //printf("make symbol %s\n", name);
     return obj;
 }
@@ -286,7 +289,8 @@ object *read_list(FILE *in, object *env) {
 // strspn
 // atoi
 
-object *read_all(FILE *in, object *env) {
+object *read_all(FILE *in, object *env)
+{
     char c;
     object *obj = NULL;
 
@@ -298,18 +302,29 @@ object *read_all(FILE *in, object *env) {
     //printf("Read found %c\n", c);
     
     //printf("check char %c\n", c);
-    if (c == '\'') {
+    if (c == '\'')
+    {
         getc(in);
         obj = cons(quote, read_all(in, env));
-    } else if (c == '(') {
+    }
+    else if (c == '(')
+    {
         obj = read_list(in, env);
-    } else if ((int)c == '"') {
+    }
+    else if ((int)c == '"')
+    {
         obj = read_string(in);
-    } else if (isdigit((int)c)) {
+    }
+    else if (isdigit((int)c))
+    {
         obj = read_number(in);
-    } else if (isalpha((int)c)) {
+    }
+    else if (isalpha((int)c))
+    {
         obj = read_symbol(in, env);
-    } else {
+    }
+    else
+    {
         printf("Error at %c\n", c);
     }
 
@@ -317,7 +332,8 @@ object *read_all(FILE *in, object *env) {
     return obj;
 }
 
-object *eval_symbol(object *obj, object *env) {
+object *eval_symbol(object *obj, object *env)
+{
     object *result = NULL;
 
     if (strcmp(obj->data.symbol.name, "define") == 0)
@@ -344,16 +360,17 @@ object *eval_list(object *obj, object *env)
         printf("CAR is a %d, not a function\n", car(obj)->type);
         return result;
     }
-    
-    if (strcmp(car(obj)->data.symbol.name, "define") == 0)
+/*    
+    if (car(obj) == define)
     {
-        object *var = lookup_symbol(car(car(obj))->data.symbol.name, env);
-        var->data.symbol.value = car(car(car(obj)));
+        
     }
-    else if (strcmp(car(obj)->data.symbol.name, "setq") == 0)
+    else */
+    if (car(obj) == setq)
     {
         object *cell = obj;
-        //object *cell_setq = car(cell); /* should be symbol named setq */
+        object *cell_setq = car(cell); /* should be symbol named setq */
+        assert(cell_setq == setq);
         cell = cdr(cell);
         object *cell_symbol = car(cell);
         cell = cdr(cell);
@@ -381,15 +398,15 @@ object *eval(object *obj, object *env)
 
     switch (obj->type)
     {
-        case CELL:
-            result = eval_list(obj, env);
-            break;
         case STRING:
         case FIXNUM:
             result = obj;
             break;
         case SYMBOL:
             result = eval_symbol(obj, env);
+            break;
+        case CELL:
+            result = eval_list(obj, env);
             break;
         default:
             printf("\nUnknown object: %d\n", obj->type);
@@ -502,6 +519,8 @@ int main (int argc, char* argv[])
     globals->data.cell.head = make_symbol("");
     quote = intern_symbol("quote", globals);
     nil = intern_symbol("nil", globals);
+    setq = intern_symbol("setq", globals);
+    define = intern_symbol("define", globals);
     
     printf("Welcome to JCM-LISP. "
            "Use ctrl-c to exit.\n");
