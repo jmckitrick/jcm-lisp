@@ -379,12 +379,13 @@ object *eval_list(object *obj, object *env)
 
     if (obj == NULL)
         return obj;
-    
+/*    
     if (!is_symbol(car(obj)))
     {
         printf("CAR is a %d, not a function\n", car(obj)->type);
         return result;
     }
+*/
 /*
     if (car(obj) == define)
     {
@@ -405,14 +406,14 @@ object *eval_list(object *obj, object *env)
         result = lookup_symbol(symbol_name, env);
         result->data.symbol.value = cell_value;
     }
-    else if (strcmp(car(obj)->data.symbol.name, "quote") == 0)
+    else if (car(obj) == quote)
     {
         result = cdr(obj);
     }
     else
     {
-        //printf("Unknown function %s\n", car(obj)->data.symbol.name);
-        result = obj;
+      result = obj;
+      //printf("Unknown function %s\n", car(obj)->data.symbol.name);
     }
 
     return result;
