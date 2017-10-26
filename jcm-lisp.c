@@ -6,46 +6,73 @@
 
 #define MAX_BUFFER_SIZE 100
 
-typedef enum {
+typedef enum
+{
     FIXNUM = 1,
     STRING,
     SYMBOL,
     CELL,
-    NIL
+    //NIL
 } obj_type;
 
 struct object;
 
 typedef struct object object;
 
-struct Fixnum {
+struct Fixnum
+{
     int value;
 };
 
-struct String {
+struct String
+{
     char *text;
 };
 
-struct Symbol {
+struct Symbol
+{
     char *name;
     object *value;
 };
 
-struct cell {
+struct Cell
+{
     struct object *head;
     struct object *tail;
 };
 
-struct object {
+struct object
+{
     obj_type type;
 
-    union {
+    union
+    {
         struct Fixnum num;
         struct String str;
-        struct cell cell;
+        struct Cell cell;
         struct Symbol symbol;
     } data;
 };
+
+int is_fixnum(object *obj)
+{
+    return (obj && obj->type == FIXNUM);
+}
+
+int is_string(object *obj)
+{
+    return (obj && obj->type == STRING);
+}
+
+int is_symbol(object *obj)
+{
+    return (obj && obj->type == SYMBOL);
+}
+
+int is_cell(object *obj)
+{
+    return (obj && obj->type == CELL);
+}
 
 object *globals;
 object *quote;
@@ -138,14 +165,14 @@ object *lookup_symbol(char *name, object *env) {
     }
     return intern_symbol(name, env);
 }
-
+/*
 object *make_nil() {
     object *obj = new_object();
     obj->type = NIL;
     //printf("make NIL\n");
     return obj;
 }
-
+*/
 int is_whitespace(char c) {
     if (isspace(c)) {
         return 1;
@@ -308,9 +335,16 @@ object *eval_symbol(object *obj, object *env) {
     return result;
 }
 
-object *eval_list(object *obj, object *env) {
+object *eval_list(object *obj, object *env)
+{
     object *result = NULL;
 
+    if (!is_symbol(car(obj)))
+    {
+        printf("CAR is a %d, not a function\n", car(obj)->type);
+        return result;
+    }
+    
     if (strcmp(car(obj)->data.symbol.name, "define") == 0)
     {
         object *var = lookup_symbol(car(car(obj))->data.symbol.name, env);
@@ -328,6 +362,10 @@ object *eval_list(object *obj, object *env) {
         char *symbol_name = cell_symbol->data.symbol.name;
         result = lookup_symbol(symbol_name, env);
         result->data.symbol.value = cell_value;
+    }
+    else if (strcmp(car(obj)->data.symbol.name, "quote") == 0)
+    {
+        result = cdr(obj);
     }
     else
     {
@@ -406,8 +444,8 @@ void print_cell(object *head, object *env) {
             //break;
         }
 
-        if (obj->data.cell.tail != NULL &&
-            obj->data.cell.tail->type != NIL) {
+        if (obj->data.cell.tail != NULL)
+        {
             //printf("\nTail type %d\n", obj->data.cell.tail->type);
             //printf("Tail value:\n");
             //printf(" ");
@@ -444,9 +482,7 @@ void print(object *obj, object *env) {
                 //print(cdr(obj), env);
                 //print(cadr(obj), env);
                 //printf("%s", obj->data.symbol.name);
-                if (obj != quote) {
-                    printf("%s ", lookup_symbol(obj->data.symbol.name, env)->data.symbol.name);
-                }
+                printf("%s ", lookup_symbol(obj->data.symbol.name, env)->data.symbol.name);
                 break;
             /* case NIL: */
             /*     printf("NIL"); */
@@ -463,6 +499,7 @@ void print(object *obj, object *env) {
 int main (int argc, char* argv[])
 {
     globals = make_cell();
+    globals->data.cell.head = make_symbol("");
     quote = intern_symbol("quote", globals);
     nil = intern_symbol("nil", globals);
     
