@@ -171,11 +171,11 @@ object *intern_symbol(char *name, object *env)
   return sym;
 }
 
-object *assoc(char *name, object *env)
+object *assoc(char *name, object *list)
 {
-  if (env != NULL)
+  if (list != NULL)
   {
-    object *sym = car(env);
+    object *sym = car(list);
 
     if (is_symbol(sym) &&
         strcmp(sym->symbol.name, name) == 0)
@@ -183,7 +183,7 @@ object *assoc(char *name, object *env)
       return sym;
     }
 
-    return assoc(name, cdr(env));
+    return assoc(name, cdr(list));
   }
 
   //printf("%s undefined.\n", name);
@@ -582,12 +582,21 @@ void print(object *obj, object *env)
 
 int main(int argc, char* argv[])
 {
+  /*
   globals = make_cell();
   nil = intern_symbol("nil", globals);
+  */
   /*
   nil = make_symbol("nil");
   globals = cons(nil, NULL);
   */
+  /*
+  object *tmp = make_symbol("");
+  globals = cons(tmp, NULL);
+  nil = intern_symbol("nil", globals);
+  */
+  globals = cons(NULL, NULL);
+  nil = intern_symbol("nil", globals);
   quote = intern_symbol("quote", globals);
   setq = intern_symbol("setq", globals);
   define = intern_symbol("define", globals);
@@ -595,21 +604,22 @@ int main(int argc, char* argv[])
   printf("Welcome to JCM-LISP. "
          "Use ctrl-c to exit.\n");
 
-  object *env = cons(globals, NULL);
+  //object *env = cons(globals, NULL);
+  object *env = globals;
   object *result = NULL;
 
   while (1)
   {
     printf("> ");
-    /*
+
     result = read_lisp(stdin, env);
     result = eval(result, env);
     print(result, env);
-    */
+/*
     result = read_lisp(stdin, globals);
     result = eval(result, globals);
     print(result, globals);
-
+*/
     printf("\n");
   }
 
