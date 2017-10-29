@@ -15,13 +15,12 @@
 
 typedef enum
 {
-  FIXNUM = 1,
+  NIL = 1,
+  FIXNUM,
   STRING,
   SYMBOL,
   CELL,
 } obj_type;
-
-struct object;
 
 typedef struct object object;
 
@@ -43,8 +42,8 @@ struct Symbol
 
 struct Cell
 {
-  struct object *head;
-  struct object *tail;
+  struct object *car;
+  struct object *cdr;
 };
 
 struct object
@@ -55,10 +54,17 @@ struct object
   {
     struct Fixnum num;
     struct String str;
-    struct Cell cell;
     struct Symbol symbol;
-  } data;
+    struct Cell cell;
+  };
 };
+
+object *globals;
+object *quote;
+object *define;
+object *setq;
+object *nil;
+object *tee;
 
 int is_fixnum(object *obj)
 {
@@ -80,28 +86,30 @@ int is_cell(object *obj)
   return (obj && obj->type == CELL);
 }
 
-object *globals;
-object *quote;
-object *define;
-object *setq;
-object *nil;
-object *tee;
-
 object *car(object *obj)
 {
-  if (obj != NULL &&
-      obj->type == CELL)
-    return obj->data.cell.head;
+  if (is_cell(obj))
+    return obj->cell.car;
   else
     return NULL;
 }
 
 object *cdr(object *obj)
 {
-  if (obj->type == CELL)
-    return obj->data.cell.tail;
+  if (is_cell(obj))
+    return obj->cell.cdr;
   else
     return NULL;
+}
+
+void setcar(object *obj, object *val)
+{
+  obj->cell.car = val;
+}
+
+void setcdr(object *obj, object *val)
+{
+  obj->cell.cdr = val;
 }
 
 #define caar(obj)    car(car(obj))
@@ -110,8 +118,6 @@ object *cdr(object *obj)
 object *new_object()
 {
   object *obj = malloc(sizeof(object));
-  obj->data.cell.head = NULL;
-  obj->data.cell.tail = NULL;
   return obj;
 }
 
@@ -119,14 +125,16 @@ object *make_cell()
 {
   object *obj = new_object();
   obj->type = CELL;
+  obj->cell.car = NULL;
+  obj->cell.cdr = NULL;
   return obj;
 }
 
-object *cons(object *head, object *tail)
+object *cons(object *car, object *cdr)
 {
   object *obj = make_cell();
-  obj->data.cell.head = head;
-  obj->data.cell.tail = tail;
+  obj->cell.car = car;
+  obj->cell.cdr = cdr;
   return obj;
 }
 
@@ -134,7 +142,7 @@ object *make_string(char *str)
 {
   object *obj = new_object();
   obj->type = STRING;
-  obj->data.str.text = strdup(str);
+  obj->str.text = strdup(str);
   return obj;
 }
 
@@ -142,7 +150,7 @@ object *make_fixnum(int n)
 {
   object *obj = new_object();
   obj->type = FIXNUM;
-  obj->data.num.value = n;
+  obj->num.value = n;
   return obj;
 }
 
@@ -150,54 +158,56 @@ object *make_symbol(char *name)
 {
   object *obj = new_object();
   obj->type = SYMBOL;
-  obj->data.symbol.name = strdup(name);
+  obj->symbol.name = strdup(name);
+  obj->symbol.value = NULL;
   return obj;
 }
 
 object *intern_symbol(char *name, object *env)
 {
-  object *obj = make_symbol(name);
-  env->data.cell.tail = cons(obj, env->data.cell.tail);
-  return obj;
+  object *sym = make_symbol(name);
+  object *cell = cons(sym, env->cell.cdr);
+  setcdr(env, cell);
+  return sym;
 }
 
-object *lookup_symbol(char *name, object *env)
+object *assoc(char *name, object *env)
 {
-  object *obj = env;
-/*
-  while (obj != NULL)
+  if (env != NULL)
   {
-  //object *cell = car(obj);
-  //object *sym = car(cell);
-  object *sym = car(obj);
+    object *sym = car(env);
 
-  if (strcmp(sym->data.symbol.name, name) == 0)
-  {
-  return sym;
-  }
-
-  obj = cdr(obj);
-  }
-*/
-  if (obj != NULL)
-  {
-    object *sym = car(obj);
-
-    if (strcmp(sym->data.symbol.name, name) == 0)
+    if (is_symbol(sym) &&
+        strcmp(sym->symbol.name, name) == 0)
     {
       return sym;
     }
 
-    obj = cdr(obj);
-
-    if (obj != NULL)
-    {
-      return lookup_symbol(name, obj);
-    }
+    return assoc(name, cdr(env));
   }
 
   //printf("%s undefined.\n", name);
   return NULL;
+}
+
+object *lookup_symbol(char *name, object *env)
+{
+  return assoc(name, env);
+/*
+  if (env != NULL)
+  {
+    object *frame = car(env);
+
+    object *sym = assoc(name, frame);
+
+    if (sym == NULL)
+      return lookup_symbol(name, cdr(env));
+    else
+      return sym;
+  }
+
+  return NULL;
+*/
 }
 
 int is_whitespace(char c)
@@ -239,7 +249,8 @@ object *read_string(FILE *in)
   int i = 0;
   char c;
 
-  while ((c = getc(in)) != '"' && i < MAX_BUFFER_SIZE - 1)
+  while ((c = getc(in)) != '"' &&
+         i < MAX_BUFFER_SIZE - 1)
   {
     buffer[i++] = c;
   }
@@ -255,12 +266,14 @@ object *read_symbol(FILE *in, object *env)
   char c;
 
   while (!is_whitespace(c = getc(in)) &&
+         isalpha(c) &&
          i < MAX_BUFFER_SIZE - 1)
   {
     buffer[i++] = c;
   }
 
   buffer[i] = '\0';
+  ungetc(c, in);
 
   object *obj = lookup_symbol(buffer, env);
 
@@ -288,37 +301,35 @@ object *read_number(FILE *in)
   return make_fixnum(number);
 }
 
-object *read_all(FILE *, object *);
+object *read_lisp(FILE *, object *);
 void print(object *, object *);
 
 object *read_list(FILE *in, object *env)
 {
   char c;
-  object *head, *tail;
+  object *car, *cdr;
 
-  head = tail = make_cell();
-  head->data.cell.head = read_all(in, env);
+  car = cdr = make_cell();
+  car->cell.car = read_lisp(in, env);
 
   while ((c = getc(in)) != ')')
   {
     if (c == '.')
     {
       getc(in);
-      tail->data.cell.tail = read_all(in, env);
+      cdr->cell.cdr = read_lisp(in, env);
     }
     else if (!is_whitespace(c))
     {
       ungetc(c, in);
 
-      tail->data.cell.tail = make_cell();
-      tail = tail->data.cell.tail;
-      tail->data.cell.head = read_all(in, env);
+      cdr->cell.cdr = make_cell();
+      cdr = cdr->cell.cdr;
+      cdr->cell.car = read_lisp(in, env);
     }
-
-    //skip_whitespace(in);
   };
 
-  return head;
+  return car;
 }
 
 // XXX Review these:
@@ -327,7 +338,7 @@ object *read_list(FILE *in, object *env)
 // strcmp
 // strspn
 // atoi
-object *read_all(FILE *in, object *env)
+object *read_lisp(FILE *in, object *env)
 {
   object *obj = NULL;
   char c;
@@ -337,7 +348,7 @@ object *read_all(FILE *in, object *env)
 
   if (c == '\'')
   {
-    obj = cons(quote, read_all(in, env));
+    obj = cons(quote, read_lisp(in, env));
   }
   else if (c == '(')
   {
@@ -360,7 +371,7 @@ object *read_all(FILE *in, object *env)
   else if (c == ')')
   {
     ungetc(c, in);
-    obj = nil;
+    //obj = nil;
   }
 
   return obj;
@@ -368,76 +379,80 @@ object *read_all(FILE *in, object *env)
 
 object *eval_symbol(object *obj, object *env)
 {
-  object *result = NULL;
-
   if (obj == NULL)
     return obj;
 
-  result = lookup_symbol(obj->data.symbol.name, env);
-  //result = result->data.symbol.value;
+  if (obj->symbol.value)
+  {
+    obj = obj->symbol.value;
+  }
+  else
+  {
+    printf("Undefined symbol ");
+  }
 
-  return result;
+  return obj;
 }
 
 object *eval(object *obj, object *env);
 
 object *eval_list(object *obj, object *env)
 {
-  object *result = NULL;
-
   if (obj == NULL)
     return obj;
-/*
-      if (!is_symbol(car(obj)))
-      {
-      printf("CAR is a %d, not a function\n", car(obj)->type);
-      return result;
-      }
-*/
+
   if (car(obj) == define)
   {
+    object *cell = obj;
+    object *cell_define = car(cell); /* should be symbol named define */
+    assert(cell_define == define);
 
+    cell = cdr(cell);
+    object *cell_symbol = car(cell);
+
+    char *symbol_name = cell_symbol->symbol.name;
+
+    return lookup_symbol(symbol_name, env);
+  }
+  else if (car(obj) == setq)
+  {
+    object *cell = obj;
+    object *cell_setq = car(cell); /* should be symbol named setq */
+    assert(cell_setq == setq);
+
+    cell = cdr(cell);
+    object *cell_symbol = car(cell);
+
+    char *symbol_name = cell_symbol->symbol.name;
+    obj = lookup_symbol(symbol_name, env);
+
+    cell = cdr(cell);
+    object *cell_value = car(cell);
+    obj->symbol.value = eval(cell_value, env);
+
+    return obj;
+  }
+  else if (car(obj) == quote)
+  {
+    return cdr(obj);
   }
   else
-    if (car(obj) == setq)
+  {
+    printf("Unknown function ");
+    switch (car(obj)->type)
     {
-      object *cell = obj;
-      object *cell_setq = car(cell); /* should be symbol named setq */
-      assert(cell_setq == setq);
-
-      cell = cdr(cell);
-      object *cell_symbol = car(cell);
-
-      cell = cdr(cell);
-      object *cell_value = car(cell);
-
-      //char *symbol_name = cell_symbol->data.symbol.name;
-      //result = lookup_symbol(symbol_name, env);
-      //result->data.symbol.value = cell_value;
-      result = eval(cell_symbol, env);
-      result->data.symbol.value = eval(cell_value, env);
+      case SYMBOL:
+        printf("%s\n", car(obj)->symbol.name);
+        break;
+      default:
+        print(car(obj), env);
+        printf("\n");
+        break;
     }
-    else if (car(obj) == quote)
-    {
-      result = cdr(obj);
-    }
-    else
-    {
-      //result = obj;
-      printf("Unknown function ");
-      switch (car(obj)->type)
-      {
-        case SYMBOL:
-          printf("%s\n", car(obj)->data.symbol.name);
-          break;
-        default:
-          print(car(obj), env);
-          printf("\n");
-          break;
-      }
-    }
+  }
 
-  return result;
+  // NOT REACHED (eventually, once we implement apply)
+  return NULL;
 }
 
 object *eval(object *obj, object *env)
@@ -447,11 +462,6 @@ object *eval(object *obj, object *env)
   if (obj == NULL)
     return obj;
 
-  // ???
-  // if symbol, eval symbol
-  // if not cell, return object
-  // if lambda, get body, eval args, eval body
-  // ???
   switch (obj->type)
   {
     case STRING:
@@ -475,7 +485,7 @@ object *eval(object *obj, object *env)
 void print_string(object *obj)
 {
   //printf("print string \n");
-  char *str = obj->data.str.text;
+  char *str = obj->str.text;
   int len = strlen(str);
   int i = 0;
   //printf("got here 6\n");
@@ -494,51 +504,40 @@ void print_string(object *obj)
 void print_fixnum(object *obj)
 {
   //printf("Fixnum\n");
-  printf("%d", obj->data.num.value);
+  printf("%d", obj->num.value);
 }
 
 void print(object *obj, object *env);
 
-void print_cell(object *head, object *env)
+void print_cell(object *car, object *env)
 {
   //printf("Cell:\n");
-  //printf("Head %p\n", obj->data.cell.head);
-  //printf("Tail %p\n", obj->data.cell.tail);
+  //printf("Car %p\n", obj->cell.car);
+  //printf("Cdr %p\n", obj->cell.cdr);
   printf("(");
-  object *obj = head;
+  object *obj = car;
 
-  for (;;)
+  while (obj)
   {
-    if (obj == NULL ||
-        obj->data.cell.head == nil)
-    {
-      //putchar('\b');
-      printf(")");
-      break;
-    }
-
     if (obj->type == CELL)
     {
-      print(obj->data.cell.head, env);
+      print(obj->cell.car, env);
     }
     else
     {
       printf(". ");
       print(obj, env);
+      break;
     }
 
-    obj = obj->data.cell.tail;
-    if (obj != NULL)
+    obj = obj->cell.cdr;
+
+    if (obj)
+    {
       printf(" ");
+    }
   }
-  // XXX Fix this by reordering the for loop
-  // to write the car,
-  // then output a ) if cdr is nil
-  // and bump the pointer if not
-  // and if the new obj is not a cons output a dot
-  // ... etc
-//    putchar('\b');
-//    printf(") ");
+  printf(")");
 }
 
 void print(object *obj, object *env)
@@ -564,9 +563,8 @@ void print(object *obj, object *env)
         //print(car(obj), env);
         //print(cdr(obj), env);
         //print(cadr(obj), env);
-        //printf("%s", obj->data.symbol.name);
-
-        printf("%s ", lookup_symbol(obj->data.symbol.name, env)->data.symbol.name);
+        //printf("%s", obj->symbol.name);
+        printf("%s", obj->symbol.name);
         break;
         /* case NIL: */
         /*     printf("NIL"); */
@@ -582,23 +580,36 @@ void print(object *obj, object *env)
   }
 }
 
-int main (int argc, char* argv[])
+int main(int argc, char* argv[])
 {
+  globals = make_cell();
+  nil = intern_symbol("nil", globals);
+  /*
   nil = make_symbol("nil");
   globals = cons(nil, NULL);
-
+  */
   quote = intern_symbol("quote", globals);
-
   setq = intern_symbol("setq", globals);
   define = intern_symbol("define", globals);
 
   printf("Welcome to JCM-LISP. "
          "Use ctrl-c to exit.\n");
 
+  object *env = cons(globals, NULL);
+  object *result = NULL;
+
   while (1)
   {
     printf("> ");
-    print(eval(read_all(stdin, globals), globals), globals);
+    /*
+    result = read_lisp(stdin, env);
+    result = eval(result, env);
+    print(result, env);
+    */
+    result = read_lisp(stdin, globals);
+    result = eval(result, globals);
+    print(result, globals);
+
     printf("\n");
   }
 
