@@ -192,22 +192,23 @@ object *assoc(char *name, object *list)
 
 object *lookup_symbol(char *name, object *env)
 {
-  return assoc(name, env);
-/*
+  //return assoc(name, env);
+
   if (env != NULL)
   {
     object *frame = car(env);
-
     object *sym = assoc(name, frame);
 
-    if (sym == NULL)
-      return lookup_symbol(name, cdr(env));
-    else
+    if (sym)
+    {
       return sym;
+    }
+
+    return lookup_symbol(name, cdr(env));
   }
 
   return NULL;
-*/
+
 }
 
 int is_whitespace(char c)
@@ -279,7 +280,7 @@ object *read_symbol(FILE *in, object *env)
 
   if (obj == NULL)
   {
-    obj = intern_symbol(buffer, env);
+    obj = intern_symbol(buffer, car(env));
   }
 
   return obj;
@@ -302,7 +303,7 @@ object *read_number(FILE *in)
 }
 
 object *read_lisp(FILE *, object *);
-void print(object *, object *);
+void print(object *);
 
 object *read_list(FILE *in, object *env)
 {
@@ -445,7 +446,7 @@ object *eval_list(object *obj, object *env)
         printf("%s\n", car(obj)->symbol.name);
         break;
       default:
-        print(car(obj), env);
+        print(car(obj));
         printf("\n");
         break;
     }
@@ -507,9 +508,7 @@ void print_fixnum(object *obj)
   printf("%d", obj->num.value);
 }
 
-void print(object *obj, object *env);
-
-void print_cell(object *car, object *env)
+void print_cell(object *car)
 {
   //printf("Cell:\n");
   //printf("Car %p\n", obj->cell.car);
@@ -521,12 +520,12 @@ void print_cell(object *car, object *env)
   {
     if (obj->type == CELL)
     {
-      print(obj->cell.car, env);
+      print(obj->cell.car);
     }
     else
     {
       printf(". ");
-      print(obj, env);
+      print(obj);
       break;
     }
 
@@ -540,7 +539,7 @@ void print_cell(object *car, object *env)
   printf(")");
 }
 
-void print(object *obj, object *env)
+void print(object *obj)
 {
   //printf("Print\n");
   //printf("Obj %p\n", obj);
@@ -551,7 +550,7 @@ void print(object *obj, object *env)
     switch (obj->type)
     {
       case CELL:
-        print_cell(obj, env);
+        print_cell(obj);
         break;
       case STRING:
         print_string(obj);
@@ -614,7 +613,7 @@ int main(int argc, char* argv[])
 
     result = read_lisp(stdin, env);
     result = eval(result, env);
-    print(result, env);
+    print(result);
 /*
     result = read_lisp(stdin, globals);
     result = eval(result, globals);
