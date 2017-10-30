@@ -37,7 +37,6 @@ struct String
 struct Symbol
 {
   char *name;
-  object *value;
 };
 
 struct Cell
@@ -59,7 +58,7 @@ struct object
   };
 };
 
-object *globals;
+object *symbols;
 object *quote;
 object *define;
 object *setq;
@@ -102,6 +101,9 @@ object *cdr(object *obj)
     return NULL;
 }
 
+#define caar(obj)    car(car(obj))
+#define cadr(obj)    car(cdr(obj))
+
 void setcar(object *obj, object *val)
 {
   obj->cell.car = val;
@@ -111,9 +113,6 @@ void setcdr(object *obj, object *val)
 {
   obj->cell.cdr = val;
 }
-
-#define caar(obj)    car(car(obj))
-#define cadr(obj)    car(cdr(obj))
 
 object *new_object()
 {
@@ -163,19 +162,14 @@ object *make_symbol(char *name)
   return obj;
 }
 
-object *intern_symbol(char *name, object *env)
+object *lookup_symbol(char *name)
 {
-  object *sym = make_symbol(name);
-  object *cell = cons(sym, env->cell.cdr);
-  setcdr(env, cell);
-  return sym;
-}
+  object *cell = symbols;
+  object *sym;
 
-object *assoc(char *name, object *list)
-{
-  if (list != NULL)
+  while (cell)
   {
-    object *sym = car(list);
+    sym = car(cell);
 
     if (is_symbol(sym) &&
         strcmp(sym->symbol.name, name) == 0)
@@ -183,32 +177,42 @@ object *assoc(char *name, object *list)
       return sym;
     }
 
-    return assoc(name, cdr(list));
+    cell = cdr(cell);
   }
 
-  //printf("%s undefined.\n", name);
   return NULL;
 }
 
-object *lookup_symbol(char *name, object *env)
+object *intern_symbol(char *name)
 {
-  //return assoc(name, env);
+  object *sym = lookup_symbol(name);
 
-  if (env != NULL)
+  if (!sym)
   {
-    object *frame = car(env);
-    object *sym = assoc(name, frame);
+    sym = make_symbol(name);
+    //object *cell = cons(sym, symbols->cell.cdr);
+    //setcdr(symbols, cell);
+    symbols = cons(sym, symbols);
+  }
 
-    if (sym)
+  return sym;
+}
+
+object *assoc(object *key, object *list)
+{
+  if (list != NULL)
+  {
+    object *pair = car(list);
+
+    if (car(pair) == key)
     {
-      return sym;
+      return pair;
     }
 
-    return lookup_symbol(name, cdr(env));
+    return assoc(key, cdr(list));
   }
 
   return NULL;
-
 }
 
 int is_whitespace(char c)
@@ -260,7 +264,7 @@ object *read_string(FILE *in)
   return make_string(buffer);
 }
 
-object *read_symbol(FILE *in, object *env)
+object *read_symbol(FILE *in)
 {
   char buffer[MAX_BUFFER_SIZE];
   int i = 0;
@@ -276,13 +280,15 @@ object *read_symbol(FILE *in, object *env)
   buffer[i] = '\0';
   ungetc(c, in);
 
-  object *obj = lookup_symbol(buffer, env);
+  object *obj = intern_symbol(buffer);
+/*
+  object *obj = lookup_var(buffer, env);
 
   if (obj == NULL)
   {
     obj = intern_symbol(buffer, car(env));
   }
-
+*/
   return obj;
 }
 
@@ -302,23 +308,23 @@ object *read_number(FILE *in)
   return make_fixnum(number);
 }
 
-object *read_lisp(FILE *, object *);
+object *read_lisp(FILE *);
 void print(object *);
 
-object *read_list(FILE *in, object *env)
+object *read_list(FILE *in)
 {
   char c;
   object *car, *cdr;
 
   car = cdr = make_cell();
-  car->cell.car = read_lisp(in, env);
+  car->cell.car = read_lisp(in);
 
   while ((c = getc(in)) != ')')
   {
     if (c == '.')
     {
       getc(in);
-      cdr->cell.cdr = read_lisp(in, env);
+      cdr->cell.cdr = read_lisp(in);
     }
     else if (!is_whitespace(c))
     {
@@ -326,7 +332,7 @@ object *read_list(FILE *in, object *env)
 
       cdr->cell.cdr = make_cell();
       cdr = cdr->cell.cdr;
-      cdr->cell.car = read_lisp(in, env);
+      cdr->cell.car = read_lisp(in);
     }
   };
 
@@ -339,7 +345,7 @@ object *read_list(FILE *in, object *env)
 // strcmp
 // strspn
 // atoi
-object *read_lisp(FILE *in, object *env)
+object *read_lisp(FILE *in)
 {
   object *obj = NULL;
   char c;
@@ -349,11 +355,11 @@ object *read_lisp(FILE *in, object *env)
 
   if (c == '\'')
   {
-    obj = cons(quote, read_lisp(in, env));
+    obj = cons(quote, read_lisp(in));
   }
   else if (c == '(')
   {
-    obj = read_list(in, env);
+    obj = read_list(in);
   }
   else if (c == '"')
   {
@@ -367,7 +373,7 @@ object *read_lisp(FILE *in, object *env)
   else if (isalpha(c))
   {
     ungetc(c, in);
-    obj = read_symbol(in, env);
+    obj = read_symbol(in);
   }
   else if (c == ')')
   {
@@ -382,7 +388,7 @@ object *eval_symbol(object *obj, object *env)
 {
   if (obj == NULL)
     return obj;
-
+/*
   if (obj->symbol.value)
   {
     obj = obj->symbol.value;
@@ -391,8 +397,18 @@ object *eval_symbol(object *obj, object *env)
   {
     printf("Undefined symbol ");
   }
+*/
+  object *tmp = assoc(obj, env);
 
-  return obj;
+  if (tmp)
+  {
+    return cdr(tmp);
+  }
+  else
+  {
+    printf("Undefined symbol ");
+    return NULL;
+  }
 }
 
 object *eval(object *obj, object *env);
@@ -405,33 +421,43 @@ object *eval_list(object *obj, object *env)
   if (car(obj) == define)
   {
     object *cell = obj;
-    object *cell_define = car(cell); /* should be symbol named define */
+    object *cell_define = car(cell); // should be symbol named define
     assert(cell_define == define);
 
     cell = cdr(cell);
     object *cell_symbol = car(cell);
 
-    char *symbol_name = cell_symbol->symbol.name;
+    //char *symbol_name = cell_symbol->symbol.name;
 
-    return lookup_symbol(symbol_name, env);
+    cell = cdr(cell);
+    object *cell_value = car(cell);
+
+    object *var = cell_symbol;
+    object *val = eval(cell_value, env);
+    setcdr(env, cons(cons(var, val), cdr(env)));
+
+    return var;
   }
   else if (car(obj) == setq)
   {
     object *cell = obj;
-    object *cell_setq = car(cell); /* should be symbol named setq */
+    object *cell_setq = car(cell); // should be symbol named setq
     assert(cell_setq == setq);
 
     cell = cdr(cell);
     object *cell_symbol = car(cell);
 
-    char *symbol_name = cell_symbol->symbol.name;
-    obj = lookup_symbol(symbol_name, env);
+    //char *symbol_name = cell_symbol->symbol.name;
+    //obj = lookup_var(symbol_name, env);
 
     cell = cdr(cell);
     object *cell_value = car(cell);
-    obj->symbol.value = eval(cell_value, env);
 
-    return obj;
+    object *pair = assoc(cell_symbol, env);
+    object *newval = eval(cell_value, env);
+    setcdr(pair, newval);
+
+    return newval;
   }
   else if (car(obj) == quote)
   {
@@ -541,10 +567,6 @@ void print_cell(object *car)
 
 void print(object *obj)
 {
-  //printf("Print\n");
-  //printf("Obj %p\n", obj);
-  //printf("Type %d\n", obj->type);
-
   if (obj != NULL)
   {
     switch (obj->type)
@@ -559,66 +581,35 @@ void print(object *obj)
         print_fixnum(obj);
         break;
       case SYMBOL:
-        //print(car(obj), env);
-        //print(cdr(obj), env);
-        //print(cadr(obj), env);
-        //printf("%s", obj->symbol.name);
         printf("%s", obj->symbol.name);
         break;
-        /* case NIL: */
-        /*     printf("NIL"); */
-        /*     break; */
       default:
         printf("\nUnknown object: %d\n", obj->type);
         break;
     }
   }
-  else
-  {
-    //printf("NULL ");
-  }
 }
 
 int main(int argc, char* argv[])
 {
-  /*
-  globals = make_cell();
-  nil = intern_symbol("nil", globals);
-  */
-  /*
-  nil = make_symbol("nil");
-  globals = cons(nil, NULL);
-  */
-  /*
-  object *tmp = make_symbol("");
-  globals = cons(tmp, NULL);
-  nil = intern_symbol("nil", globals);
-  */
-  globals = cons(NULL, NULL);
-  nil = intern_symbol("nil", globals);
-  quote = intern_symbol("quote", globals);
-  setq = intern_symbol("setq", globals);
-  define = intern_symbol("define", globals);
+  symbols = cons(NULL, NULL);
+  nil = intern_symbol("nil");
+  quote = intern_symbol("quote");
+  setq = intern_symbol("setq");
+  define = intern_symbol("define");
 
   printf("Welcome to JCM-LISP. "
          "Use ctrl-c to exit.\n");
 
-  //object *env = cons(globals, NULL);
-  object *env = globals;
+  object *env = cons(cons(NULL, NULL), NULL);
   object *result = NULL;
 
   while (1)
   {
     printf("> ");
-
-    result = read_lisp(stdin, env);
+    result = read_lisp(stdin); /* Read should not need an env */
     result = eval(result, env);
     print(result);
-/*
-    result = read_lisp(stdin, globals);
-    result = eval(result, globals);
-    print(result, globals);
-*/
     printf("\n");
   }
 
