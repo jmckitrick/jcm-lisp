@@ -158,7 +158,6 @@ object *make_symbol(char *name)
   object *obj = new_object();
   obj->type = SYMBOL;
   obj->symbol.name = strdup(name);
-  obj->symbol.value = NULL;
   return obj;
 }
 
@@ -388,16 +387,7 @@ object *eval_symbol(object *obj, object *env)
 {
   if (obj == NULL)
     return obj;
-/*
-  if (obj->symbol.value)
-  {
-    obj = obj->symbol.value;
-  }
-  else
-  {
-    printf("Undefined symbol ");
-  }
-*/
+
   object *tmp = assoc(obj, env);
 
   if (tmp)
@@ -427,8 +417,6 @@ object *eval_list(object *obj, object *env)
     cell = cdr(cell);
     object *cell_symbol = car(cell);
 
-    //char *symbol_name = cell_symbol->symbol.name;
-
     cell = cdr(cell);
     object *cell_value = car(cell);
 
@@ -446,9 +434,6 @@ object *eval_list(object *obj, object *env)
 
     cell = cdr(cell);
     object *cell_symbol = car(cell);
-
-    //char *symbol_name = cell_symbol->symbol.name;
-    //obj = lookup_var(symbol_name, env);
 
     cell = cdr(cell);
     object *cell_value = car(cell);
