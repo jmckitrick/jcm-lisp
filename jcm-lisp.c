@@ -20,6 +20,7 @@ typedef enum
   STRING,
   SYMBOL,
   CELL,
+  PRIMITIVE
 } obj_type;
 
 typedef struct object object;
@@ -45,6 +46,11 @@ struct Cell
   struct object *cdr;
 };
 
+struct Primitive
+{
+  object *(*fn)(object *args);
+};
+
 struct object
 {
   obj_type type;
@@ -55,6 +61,7 @@ struct object
     struct String str;
     struct Symbol symbol;
     struct Cell cell;
+    struct Primitive primitive;
   };
 };
 
@@ -65,6 +72,8 @@ object *setq_s;
 object *nil_s;
 object *if_s;
 object *t_s;
+
+object *prim_add;
 
 int is_fixnum(object *obj)
 {
@@ -84,6 +93,11 @@ int is_symbol(object *obj)
 int is_cell(object *obj)
 {
   return (obj && obj->type == CELL);
+}
+
+int is_primitive(object *obj)
+{
+  return (obj && obj->type == PRIMITIVE);
 }
 
 object *car(object *obj)
@@ -162,6 +176,14 @@ object *make_symbol(char *name)
   return obj;
 }
 
+object *make_primitive(object *(*fn)(object *args))
+{
+  object *obj = new_object();
+  obj->type = PRIMITIVE;
+  obj->primitive.fn = fn;
+  return obj;
+}
+
 object *lookup_symbol(char *name)
 {
   object *cell = symbols;
@@ -211,6 +233,11 @@ object *assoc(object *key, object *list)
   }
 
   return NULL;
+}
+
+object *primitive_add(object *args)
+{
+  return make_fixnum(8);
 }
 
 int is_whitespace(char c)
@@ -269,7 +296,7 @@ object *read_symbol(FILE *in)
   char c;
 
   while (!is_whitespace(c = getc(in)) &&
-         isalpha(c) &&
+         //isalpha(c) &&
          i < MAX_BUFFER_SIZE - 1)
   {
     buffer[i++] = c;
@@ -364,6 +391,12 @@ object *read_lisp(FILE *in)
   else if (isalpha(c))
   {
     ungetc(c, in);
+    obj = read_symbol(in);
+  }
+  else if (c == '+')
+  {
+    ungetc(c, in);
+    //obj = read_primitive(in);
     obj = read_symbol(in);
   }
   else if (c == ')')
@@ -466,6 +499,11 @@ object *eval_list(object *obj, object *env)
   {
     return cdr(obj);
   }
+  else if (is_primitive(eval(car(obj), env)))
+  {
+    object *fn = eval(car(obj), env);
+    return (*fn->primitive.fn)(NULL);
+  }
   else
   {
     printf("Unknown function ");
@@ -499,6 +537,7 @@ object *eval(object *obj, object *env)
   {
     case STRING:
     case FIXNUM:
+    case PRIMITIVE:
       result = obj;
       break;
     case SYMBOL:
@@ -599,11 +638,15 @@ int main(int argc, char* argv[])
   setq_s = intern_symbol("setq");
   define_s = intern_symbol("define");
   if_s = intern_symbol("if");
-  
+
   object *env = cons(cons(NULL, NULL), NULL);
   extend_env(env, t_s, t_s);
   extend_env(env, nil_s, nil_s);
-
+  
+  prim_add = intern_symbol("+");
+  object *add_fn = make_primitive(primitive_add);
+  extend_env(env, prim_add, add_fn);
+  
   printf("Welcome to JCM-LISP. "
          "Use ctrl-c to exit.\n");
 
