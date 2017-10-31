@@ -59,11 +59,12 @@ struct object
 };
 
 object *symbols;
-object *quote;
-object *define;
-object *setq;
-object *nil;
-object *tee;
+object *quote_s;
+object *define_s;
+object *setq_s;
+object *nil_s;
+object *if_s;
+object *t_s;
 
 int is_fixnum(object *obj)
 {
@@ -189,8 +190,6 @@ object *intern_symbol(char *name)
   if (!sym)
   {
     sym = make_symbol(name);
-    //object *cell = cons(sym, symbols->cell.cdr);
-    //setcdr(symbols, cell);
     symbols = cons(sym, symbols);
   }
 
@@ -280,14 +279,7 @@ object *read_symbol(FILE *in)
   ungetc(c, in);
 
   object *obj = intern_symbol(buffer);
-/*
-  object *obj = lookup_var(buffer, env);
 
-  if (obj == NULL)
-  {
-    obj = intern_symbol(buffer, car(env));
-  }
-*/
   return obj;
 }
 
@@ -354,7 +346,7 @@ object *read_lisp(FILE *in)
 
   if (c == '\'')
   {
-    obj = cons(quote, read_lisp(in));
+    obj = cons(quote_s, read_lisp(in));
   }
   else if (c == '(')
   {
@@ -377,7 +369,6 @@ object *read_lisp(FILE *in)
   else if (c == ')')
   {
     ungetc(c, in);
-    //obj = nil;
   }
 
   return obj;
@@ -401,6 +392,12 @@ object *eval_symbol(object *obj, object *env)
   }
 }
 
+object *extend_env(object* env, object *var, object *val)
+{
+  setcdr(env, cons(cons(var, val), cdr(env)));
+  return val;
+}
+
 object *eval(object *obj, object *env);
 
 object *eval_list(object *obj, object *env)
@@ -408,11 +405,10 @@ object *eval_list(object *obj, object *env)
   if (obj == NULL)
     return obj;
 
-  if (car(obj) == define)
+  if (car(obj) == define_s)
   {
     object *cell = obj;
-    object *cell_define = car(cell); // should be symbol named define
-    assert(cell_define == define);
+    //object *cell_define = car(cell); // should be symbol named define
 
     cell = cdr(cell);
     object *cell_symbol = car(cell);
@@ -422,15 +418,14 @@ object *eval_list(object *obj, object *env)
 
     object *var = cell_symbol;
     object *val = eval(cell_value, env);
-    setcdr(env, cons(cons(var, val), cdr(env)));
+    extend_env(env, var, val);
 
     return var;
   }
-  else if (car(obj) == setq)
+  else if (car(obj) == setq_s)
   {
     object *cell = obj;
-    object *cell_setq = car(cell); // should be symbol named setq
-    assert(cell_setq == setq);
+    //object *cell_setq = car(cell); // should be symbol named setq
 
     cell = cdr(cell);
     object *cell_symbol = car(cell);
@@ -444,7 +439,30 @@ object *eval_list(object *obj, object *env)
 
     return newval;
   }
-  else if (car(obj) == quote)
+  else if (car(obj) == if_s)
+  {
+    object *cell = obj;
+    //object *cell_if = car(cell);
+
+    cell = cdr(cell);
+    object *cell_condition = car(cell);
+
+    cell = cdr(cell);
+    object *cell_true_branch = car(cell);
+
+    cell = cdr(cell);
+    object *cell_false_branch = car(cell);
+
+    if (eval(cell_condition, env) != nil_s)
+    {
+      return eval(cell_true_branch, env);
+    }
+    else
+    {
+      return eval(cell_false_branch, env);
+    }
+  }
+  else if (car(obj) == quote_s)
   {
     return cdr(obj);
   }
@@ -474,6 +492,9 @@ object *eval(object *obj, object *env)
   if (obj == NULL)
     return obj;
 
+  if (obj == nil_s)
+    return nil_s;
+  
   switch (obj->type)
   {
     case STRING:
@@ -496,11 +517,9 @@ object *eval(object *obj, object *env)
 
 void print_string(object *obj)
 {
-  //printf("print string \n");
   char *str = obj->str.text;
   int len = strlen(str);
   int i = 0;
-  //printf("got here 6\n");
 
   putchar('"');
   while (i < len)
@@ -510,7 +529,6 @@ void print_string(object *obj)
   }
 
   putchar('"');
-  //putchar(' ');
 }
 
 void print_fixnum(object *obj)
@@ -521,9 +539,6 @@ void print_fixnum(object *obj)
 
 void print_cell(object *car)
 {
-  //printf("Cell:\n");
-  //printf("Car %p\n", obj->cell.car);
-  //printf("Cdr %p\n", obj->cell.cdr);
   printf("(");
   object *obj = car;
 
@@ -578,19 +593,24 @@ void print(object *obj)
 int main(int argc, char* argv[])
 {
   symbols = cons(NULL, NULL);
-  nil = intern_symbol("nil");
-  quote = intern_symbol("quote");
-  setq = intern_symbol("setq");
-  define = intern_symbol("define");
+  nil_s = intern_symbol("nil");
+  t_s = intern_symbol("t");
+  quote_s = intern_symbol("quote");
+  setq_s = intern_symbol("setq");
+  define_s = intern_symbol("define");
+  if_s = intern_symbol("if");
+  
+  object *env = cons(cons(NULL, NULL), NULL);
+  extend_env(env, t_s, t_s);
+  extend_env(env, nil_s, nil_s);
 
   printf("Welcome to JCM-LISP. "
          "Use ctrl-c to exit.\n");
 
-  object *env = cons(cons(NULL, NULL), NULL);
-  object *result = NULL;
-
   while (1)
   {
+    object *result = NULL;
+
     printf("> ");
     result = read_lisp(stdin); /* Read should not need an env */
     result = eval(result, env);
