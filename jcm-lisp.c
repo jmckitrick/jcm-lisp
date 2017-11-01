@@ -55,7 +55,7 @@ struct Primitive
 
 struct Proc
 {
-  struct object *args;
+  struct object *vars;
   struct object *body;
   struct object *env;
 };
@@ -110,6 +110,11 @@ int is_cell(object *obj)
 int is_primitive(object *obj)
 {
   return (obj && obj->type == PRIMITIVE);
+}
+
+int is_proc(object *obj)
+{
+  return (obj && obj->type == PROC);
 }
 
 object *car(object *obj)
@@ -196,11 +201,11 @@ object *make_primitive(object *(*fn)(object *args))
   return obj;
 }
 
-object *make_proc(object *args, object *body, object *env)
+object *make_proc(object *vars, object *body, object *env)
 {
   object *obj = new_object();
   obj->type = PROC;
-  obj->proc.args = args;
+  obj->proc.vars = vars;
   obj->proc.body = body;
   obj->proc.env = env;
   return obj;
@@ -282,6 +287,12 @@ int is_whitespace(char c)
   }
 }
 
+int is_symbol_char(char c)
+{
+  return (isalnum(c) ||
+          c == '+');
+}
+
 void skip_whitespace(FILE *in)
 {
   char c;
@@ -326,7 +337,7 @@ object *read_symbol(FILE *in)
   char c;
 
   while (!is_whitespace(c = getc(in)) &&
-         isalpha(c) &&
+         is_symbol_char(c) &&
          i < MAX_BUFFER_SIZE - 1)
   {
     buffer[i++] = c;
@@ -440,6 +451,12 @@ object *read_lisp(FILE *in)
   return obj;
 }
 
+void error(char *msg)
+{
+  printf("Error %s\n", msg);
+  exit(0);
+}
+
 object *eval_symbol(object *obj, object *env)
 {
   if (obj == nil)
@@ -458,9 +475,14 @@ object *eval_symbol(object *obj, object *env)
   }
 }
 
+object *extend(object *env, object *var, object *val)
+{
+  return cons(cons(var, val), env);
+}
+
 object *extend_env(object* env, object *var, object *val)
 {
-  setcdr(env, cons(cons(var, val), cdr(env)));
+  setcdr(env, extend(cdr(env), var, val));
   return val;
 }
 
@@ -476,6 +498,46 @@ object *eval_args(object *args, object *env)
   return nil;
 }
 
+object *progn(object *forms, object *env)
+{
+  if (forms == nil)
+    return nil;
+
+  for (;;)
+  {
+    if (cdr(forms) == nil)
+      return eval(car(forms), env);
+
+    forms = cdr(forms);
+  }
+
+  return nil;
+}
+
+object *multiple_extend_env(object *env, object *vars, object *vals)
+{
+  if (vars == nil)
+    return env;
+  else
+    return multiple_extend_env(extend(env, car(vars), car(vals)), cdr(vars), cdr(vals));
+}
+
+object *apply(object *proc, object *args, object *env)
+{
+  if (is_primitive(proc))
+  {
+    return (*proc->primitive.fn)(args);
+  }
+
+  if (is_proc(proc))
+  {
+    return progn(proc->proc.body, multiple_extend_env(env, proc->proc.vars, args));
+  }
+
+  error("Bad apply");
+
+  return nil;
+}
 
 object *eval_list(object *obj, object *env)
 {
@@ -543,39 +605,16 @@ object *eval_list(object *obj, object *env)
   {
     return car(cdr(obj));
   }
-  else if (is_primitive(eval(car(obj), env)))
-  {
-    object *fn = eval(car(obj), env);
-    object *args = cdr(obj);
-    object *args_eval = eval_args(args, env);
-    return (*fn->primitive.fn)(args_eval);
-  }
   else if (car(obj) == lambda_s)
   {
-    object *args = car(cdr(obj));
+    object *vars = car(cdr(obj));
     object *body = cdr(cdr(obj));
-    return make_proc(args, body, env);
-  }
-  else
-  {
-
-/*
-    printf("Unknown function ");
-    switch (car(obj)->type)
-    {
-      case SYMBOL:
-        printf("%s\n", car(obj)->symbol.name);
-        break;
-      default:
-        print(car(obj));
-        printf("\n");
-        break;
-    }
-*/
+    return make_proc(vars, body, env);
   }
 
-  // NOT REACHED (eventually, once we implement apply)
-  return nil;
+  object *proc = eval(car(obj), env);
+  object *args = eval_args(cdr(obj), env);
+  return apply(proc, args, env);
 }
 
 object *eval(object *obj, object *env)
@@ -590,6 +629,7 @@ object *eval(object *obj, object *env)
     case STRING:
     case FIXNUM:
     case PRIMITIVE:
+    case PROC:
       result = obj;
       break;
     case SYMBOL:
@@ -597,9 +637,6 @@ object *eval(object *obj, object *env)
       break;
     case CELL:
       result = eval_list(obj, env);
-      break;
-    case PROC:
-      result = make_proc(car(obj), car(cdr(obj)), env);
       break;
     default:
       printf("\nUnknown object: %d\n", obj->type);
@@ -715,7 +752,7 @@ int main(int argc, char* argv[])
 
     printf("> ");
     result = read_lisp(stdin); /* Read should not need an env */
-    //result = eval(result, env);
+    result = eval(result, env);
     print(result);
     printf("\n");
   }
