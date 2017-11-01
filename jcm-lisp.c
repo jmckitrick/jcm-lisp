@@ -2,6 +2,7 @@
  * JCM-LISP
  *
  * Based on http://web.sonoma.edu/users/l/luvisi/sl3.c
+ * and http://peter.michaux.ca/archives
  */
 
 #include <stdio.h>
@@ -20,7 +21,8 @@ typedef enum
   STRING,
   SYMBOL,
   CELL,
-  PRIMITIVE
+  PRIMITIVE,
+  PROC
 } obj_type;
 
 typedef struct object object;
@@ -51,6 +53,13 @@ struct Primitive
   object *(*fn)(object *args);
 };
 
+struct Proc
+{
+  struct object *args;
+  struct object *body;
+  struct object *env;
+};
+
 struct object
 {
   obj_type type;
@@ -62,6 +71,7 @@ struct object
     struct Symbol symbol;
     struct Cell cell;
     struct Primitive primitive;
+    struct Proc proc;
   };
 };
 
@@ -69,11 +79,13 @@ object *symbols;
 object *quote_s;
 object *define_s;
 object *setq_s;
-object *nil_s;
+object *nil;
 object *if_s;
 object *t_s;
 
 object *prim_add;
+
+object *lambda_s;
 
 int is_fixnum(object *obj)
 {
@@ -105,7 +117,7 @@ object *car(object *obj)
   if (is_cell(obj))
     return obj->cell.car;
   else
-    return NULL;
+    return nil;
 }
 
 object *cdr(object *obj)
@@ -113,7 +125,7 @@ object *cdr(object *obj)
   if (is_cell(obj))
     return obj->cell.cdr;
   else
-    return NULL;
+    return nil;
 }
 
 #define caar(obj)    car(car(obj))
@@ -139,8 +151,8 @@ object *make_cell()
 {
   object *obj = new_object();
   obj->type = CELL;
-  obj->cell.car = NULL;
-  obj->cell.cdr = NULL;
+  obj->cell.car = nil;
+  obj->cell.cdr = nil;
   return obj;
 }
 
@@ -184,12 +196,22 @@ object *make_primitive(object *(*fn)(object *args))
   return obj;
 }
 
+object *make_proc(object *args, object *body, object *env)
+{
+  object *obj = new_object();
+  obj->type = PROC;
+  obj->proc.args = args;
+  obj->proc.body = body;
+  obj->proc.env = env;
+  return obj;
+}
+
 object *lookup_symbol(char *name)
 {
   object *cell = symbols;
   object *sym;
 
-  while (cell)
+  while (cell != nil)
   {
     sym = car(cell);
 
@@ -202,14 +224,14 @@ object *lookup_symbol(char *name)
     cell = cdr(cell);
   }
 
-  return NULL;
+  return nil;
 }
 
 object *intern_symbol(char *name)
 {
   object *sym = lookup_symbol(name);
 
-  if (!sym)
+  if (sym == nil)
   {
     sym = make_symbol(name);
     symbols = cons(sym, symbols);
@@ -220,7 +242,7 @@ object *intern_symbol(char *name)
 
 object *assoc(object *key, object *list)
 {
-  if (list != NULL)
+  if (list != nil)
   {
     object *pair = car(list);
 
@@ -232,12 +254,20 @@ object *assoc(object *key, object *list)
     return assoc(key, cdr(list));
   }
 
-  return NULL;
+  return nil;
 }
 
 object *primitive_add(object *args)
 {
-  return make_fixnum(8);
+  long total = 0;
+
+  while (args != nil)
+  {
+    total += car(args)->num.value;
+    args = cdr(args);
+  }
+  
+  return make_fixnum(total);
 }
 
 int is_whitespace(char c)
@@ -365,7 +395,7 @@ object *read_list(FILE *in)
 // atoi
 object *read_lisp(FILE *in)
 {
-  object *obj = NULL;
+  object *obj = nil;
   char c;
 
   skip_whitespace(in);
@@ -373,7 +403,7 @@ object *read_lisp(FILE *in)
 
   if (c == '\'')
   {
-    obj = cons(quote_s, read_lisp(in));
+    obj = cons(quote_s, cons(read_lisp(in), nil));
   }
   else if (c == '(')
   {
@@ -403,25 +433,29 @@ object *read_lisp(FILE *in)
   {
     ungetc(c, in);
   }
+  else if (c == EOF)
+  {
+    exit(0);
+  }
 
   return obj;
 }
 
 object *eval_symbol(object *obj, object *env)
 {
-  if (obj == NULL)
+  if (obj == nil)
     return obj;
 
   object *tmp = assoc(obj, env);
 
-  if (tmp)
+  if (tmp != nil)
   {
     return cdr(tmp);
   }
   else
   {
-    printf("Undefined symbol ");
-    return NULL;
+    printf("Undefined symbol %s", obj->symbol.name);
+    return nil;
   }
 }
 
@@ -433,9 +467,20 @@ object *extend_env(object* env, object *var, object *val)
 
 object *eval(object *obj, object *env);
 
+object *eval_args(object *args, object *env)
+{
+  if (args != nil)
+  {
+    return cons(eval(car(args), env), eval_args(cdr(args), env));
+  }
+
+  return nil;
+}
+
+
 object *eval_list(object *obj, object *env)
 {
-  if (obj == NULL)
+  if (obj == nil)
     return obj;
 
   if (car(obj) == define_s)
@@ -486,7 +531,7 @@ object *eval_list(object *obj, object *env)
     cell = cdr(cell);
     object *cell_false_branch = car(cell);
 
-    if (eval(cell_condition, env) != nil_s)
+    if (eval(cell_condition, env) != nil)
     {
       return eval(cell_true_branch, env);
     }
@@ -497,15 +542,18 @@ object *eval_list(object *obj, object *env)
   }
   else if (car(obj) == quote_s)
   {
-    return cdr(obj);
+    return car(cdr(obj));
   }
   else if (is_primitive(eval(car(obj), env)))
   {
     object *fn = eval(car(obj), env);
-    return (*fn->primitive.fn)(NULL);
+    object *args = cdr(obj);
+    object *args_eval = eval_args(args, env);
+    return (*fn->primitive.fn)(args_eval);
   }
   else
   {
+/*
     printf("Unknown function ");
     switch (car(obj)->type)
     {
@@ -517,21 +565,22 @@ object *eval_list(object *obj, object *env)
         printf("\n");
         break;
     }
+*/
   }
 
   // NOT REACHED (eventually, once we implement apply)
-  return NULL;
+  return nil;
 }
 
 object *eval(object *obj, object *env)
 {
-  object *result = NULL;
+  object *result = nil;
 
-  if (obj == NULL)
+  if (obj == nil)
     return obj;
 
-  if (obj == nil_s)
-    return nil_s;
+  if (obj == nil)
+    return nil;
   
   switch (obj->type)
   {
@@ -545,6 +594,9 @@ object *eval(object *obj, object *env)
       break;
     case CELL:
       result = eval_list(obj, env);
+      break;
+    case PROC:
+      result = make_proc(car(obj), car(cdr(obj)), env);
       break;
     default:
       printf("\nUnknown object: %d\n", obj->type);
@@ -581,7 +633,7 @@ void print_cell(object *car)
   printf("(");
   object *obj = car;
 
-  while (obj)
+  while (obj != nil)
   {
     if (obj->type == CELL)
     {
@@ -596,7 +648,7 @@ void print_cell(object *car)
 
     obj = obj->cell.cdr;
 
-    if (obj)
+    if (obj != nil)
     {
       printf(" ");
     }
@@ -606,7 +658,7 @@ void print_cell(object *car)
 
 void print(object *obj)
 {
-  if (obj != NULL)
+  if (obj != nil)
   {
     switch (obj->type)
     {
@@ -622,6 +674,9 @@ void print(object *obj)
       case SYMBOL:
         printf("%s", obj->symbol.name);
         break;
+      case PROC:
+        printf("<PROC>");
+        break;
       default:
         printf("\nUnknown object: %d\n", obj->type);
         break;
@@ -631,17 +686,18 @@ void print(object *obj)
 
 int main(int argc, char* argv[])
 {
-  symbols = cons(NULL, NULL);
-  nil_s = intern_symbol("nil");
+  nil = make_symbol("nil");
+  symbols = cons(nil, nil);
+
   t_s = intern_symbol("t");
   quote_s = intern_symbol("quote");
   setq_s = intern_symbol("setq");
   define_s = intern_symbol("define");
   if_s = intern_symbol("if");
+  lambda_s = intern_symbol("lambda");
 
-  object *env = cons(cons(NULL, NULL), NULL);
+  object *env = cons(cons(nil, nil), nil);
   extend_env(env, t_s, t_s);
-  extend_env(env, nil_s, nil_s);
   
   prim_add = intern_symbol("+");
   object *add_fn = make_primitive(primitive_add);
@@ -652,11 +708,11 @@ int main(int argc, char* argv[])
 
   while (1)
   {
-    object *result = NULL;
+    object *result = nil;
 
     printf("> ");
     result = read_lisp(stdin); /* Read should not need an env */
-    result = eval(result, env);
+    //result = eval(result, env);
     print(result);
     printf("\n");
   }
