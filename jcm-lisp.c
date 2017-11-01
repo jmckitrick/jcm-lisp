@@ -266,7 +266,7 @@ object *primitive_add(object *args)
     total += car(args)->num.value;
     args = cdr(args);
   }
-  
+
   return make_fixnum(total);
 }
 
@@ -326,7 +326,7 @@ object *read_symbol(FILE *in)
   char c;
 
   while (!is_whitespace(c = getc(in)) &&
-         //isalpha(c) &&
+         isalpha(c) &&
          i < MAX_BUFFER_SIZE - 1)
   {
     buffer[i++] = c;
@@ -426,7 +426,6 @@ object *read_lisp(FILE *in)
   else if (c == '+')
   {
     ungetc(c, in);
-    //obj = read_primitive(in);
     obj = read_symbol(in);
   }
   else if (c == ')')
@@ -551,8 +550,15 @@ object *eval_list(object *obj, object *env)
     object *args_eval = eval_args(args, env);
     return (*fn->primitive.fn)(args_eval);
   }
+  else if (car(obj) == lambda_s)
+  {
+    object *args = car(cdr(obj));
+    object *body = cdr(cdr(obj));
+    return make_proc(args, body, env);
+  }
   else
   {
+
 /*
     printf("Unknown function ");
     switch (car(obj)->type)
@@ -577,11 +583,8 @@ object *eval(object *obj, object *env)
   object *result = nil;
 
   if (obj == nil)
-    return obj;
-
-  if (obj == nil)
     return nil;
-  
+
   switch (obj->type)
   {
     case STRING:
@@ -698,11 +701,11 @@ int main(int argc, char* argv[])
 
   object *env = cons(cons(nil, nil), nil);
   extend_env(env, t_s, t_s);
-  
+
   prim_add = intern_symbol("+");
   object *add_fn = make_primitive(primitive_add);
   extend_env(env, prim_add, add_fn);
-  
+
   printf("Welcome to JCM-LISP. "
          "Use ctrl-c to exit.\n");
 
