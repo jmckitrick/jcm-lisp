@@ -83,7 +83,7 @@ object *nil;
 object *if_s;
 object *t_s;
 
-object *prim_add, *prim_sub, *prim_mult, *prim_div;
+object *prim_add, *prim_sub, *prim_mul, *prim_div;
 
 object *lambda_s;
 
@@ -289,6 +289,33 @@ object *primitive_sub(object *args)
   return make_fixnum(result);
 }
 
+object *primitive_mul(object *args)
+{
+  long total = 1;
+
+  while (args != nil)
+  {
+    total *= car(args)->num.value;
+    args = cdr(args);
+  }
+
+  return make_fixnum(total);
+}
+
+object *primitive_div(object *args)
+{
+  long dividend = car(args)->num.value;
+  long divisor = cadr(args)->num.value;
+  long quotient = 0;
+
+  if (divisor != 0)
+  {
+    quotient = dividend / divisor;
+  }
+
+  return make_fixnum(quotient);
+}
+
 int is_whitespace(char c)
 {
   if (isspace(c))
@@ -304,7 +331,7 @@ int is_whitespace(char c)
 int is_symbol_char(char c)
 {
   return (isalnum(c) ||
-          c == '+');
+          strchr("+-*/", c));
 }
 
 void skip_whitespace(FILE *in)
@@ -758,12 +785,18 @@ int main(int argc, char* argv[])
 
   object *add_fn = make_primitive(primitive_add);
   object *sub_fn = make_primitive(primitive_sub);
+  object *mul_fn = make_primitive(primitive_mul);
+  object *div_fn = make_primitive(primitive_div);
 
   prim_add = intern_symbol("+");
   prim_sub = intern_symbol("-");
+  prim_mul = intern_symbol("*");
+  prim_div = intern_symbol("/");
 
   extend_env(env, prim_add, add_fn);
   extend_env(env, prim_sub, sub_fn);
+  extend_env(env, prim_mul, mul_fn);
+  extend_env(env, prim_div, div_fn);
 
   printf("Welcome to JCM-LISP. "
          "Use ctrl-c to exit.\n");

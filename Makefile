@@ -5,3 +5,4 @@ all:	jcm-lisp
 
 clean:
 	rm jcm-lisp
+	rm -rf jcm-lisp.dSYM
