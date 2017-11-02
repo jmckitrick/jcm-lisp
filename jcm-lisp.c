@@ -83,7 +83,7 @@ object *nil;
 object *if_s;
 object *t_s;
 
-object *prim_add;
+object *prim_add, *prim_sub, *prim_mult, *prim_div;
 
 object *lambda_s;
 
@@ -275,6 +275,20 @@ object *primitive_add(object *args)
   return make_fixnum(total);
 }
 
+object *primitive_sub(object *args)
+{
+  long result = car(args)->num.value;
+
+  args = cdr(args);
+  while (args != nil)
+  {
+    result -= car(args)->num.value;
+    args = cdr(args);
+  }
+
+  return make_fixnum(result);
+}
+
 int is_whitespace(char c)
 {
   if (isspace(c))
@@ -434,7 +448,8 @@ object *read_lisp(FILE *in)
     ungetc(c, in);
     obj = read_symbol(in);
   }
-  else if (c == '+')
+  //else if (c == '+')
+  else if (strchr("+-*/", c))
   {
     ungetc(c, in);
     obj = read_symbol(in);
@@ -471,6 +486,7 @@ object *eval_symbol(object *obj, object *env)
   else
   {
     printf("Undefined symbol %s", obj->symbol.name);
+
     return nil;
   }
 }
@@ -483,6 +499,7 @@ object *extend(object *env, object *var, object *val)
 object *extend_env(object* env, object *var, object *val)
 {
   setcdr(env, extend(cdr(env), var, val));
+
   return val;
 }
 
@@ -739,9 +756,14 @@ int main(int argc, char* argv[])
   object *env = cons(cons(nil, nil), nil);
   extend_env(env, t_s, t_s);
 
-  prim_add = intern_symbol("+");
   object *add_fn = make_primitive(primitive_add);
+  object *sub_fn = make_primitive(primitive_sub);
+
+  prim_add = intern_symbol("+");
+  prim_sub = intern_symbol("-");
+
   extend_env(env, prim_add, add_fn);
+  extend_env(env, prim_sub, sub_fn);
 
   printf("Welcome to JCM-LISP. "
          "Use ctrl-c to exit.\n");
