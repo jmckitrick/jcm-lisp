@@ -25,8 +25,8 @@ typedef enum {
   PROC
 } obj_type;
 
-typedef struct object object;
-typedef struct object *(primitive_fn)(struct object *);
+typedef struct Object Object;
+typedef struct Object *(primitive_fn)(struct Object *);
 
 struct Fixnum {
   int value;
@@ -41,8 +41,8 @@ struct Symbol {
 };
 
 struct Cell {
-  struct object *car;
-  struct object *cdr;
+  struct Object *car;
+  struct Object *cdr;
 };
 
 struct Primitive {
@@ -50,12 +50,12 @@ struct Primitive {
 };
 
 struct Proc {
-  struct object *vars;
-  struct object *body;
-  struct object *env;
+  struct Object *vars;
+  struct Object *body;
+  struct Object *env;
 };
 
-struct object {
+struct Object {
   obj_type type;
 
   union {
@@ -68,50 +68,50 @@ struct object {
   };
 };
 
-object *symbols;
-object *s_quote;
-object *s_define;
-object *s_setq;
-object *s_nil;
-object *s_if;
-object *s_t;
+Object *symbols;
+Object *s_quote;
+Object *s_define;
+Object *s_setq;
+Object *s_nil;
+Object *s_if;
+Object *s_t;
 
-//object *prim_add, *prim_sub, *prim_mul, *prim_div;
+//Object *prim_add, *prim_sub, *prim_mul, *prim_div;
 
-object *lambda_s;
+Object *lambda_s;
 
-int is_fixnum(object *obj) {
+int is_fixnum(Object *obj) {
   return (obj && obj->type == FIXNUM);
 }
 
-int is_string(object *obj) {
+int is_string(Object *obj) {
   return (obj && obj->type == STRING);
 }
 
-int is_symbol(object *obj) {
+int is_symbol(Object *obj) {
   return (obj && obj->type == SYMBOL);
 }
 
-int is_cell(object *obj) {
+int is_cell(Object *obj) {
   return (obj && obj->type == CELL);
 }
 
-int is_primitive(object *obj) {
+int is_primitive(Object *obj) {
   return (obj && obj->type == PRIMITIVE);
 }
 
-int is_proc(object *obj) {
+int is_proc(Object *obj) {
   return (obj && obj->type == PROC);
 }
 
-object *car(object *obj) {
+Object *car(Object *obj) {
   if (is_cell(obj))
     return obj->cell.car;
   else
     return s_nil;
 }
 
-object *cdr(object *obj) {
+Object *cdr(Object *obj) {
   if (is_cell(obj))
     return obj->cell.cdr;
   else
@@ -121,64 +121,64 @@ object *cdr(object *obj) {
 #define caar(obj)    car(car(obj))
 #define cadr(obj)    car(cdr(obj))
 
-void setcar(object *obj, object *val) {
+void setcar(Object *obj, Object *val) {
   obj->cell.car = val;
 }
 
-void setcdr(object *obj, object *val) {
+void setcdr(Object *obj, Object *val) {
   obj->cell.cdr = val;
 }
 
-object *new_object() {
-  object *obj = malloc(sizeof(object));
+Object *new_Object() {
+  Object *obj = malloc(sizeof(Object));
   return obj;
 }
 
-object *make_cell() {
-  object *obj = new_object();
+Object *make_cell() {
+  Object *obj = new_Object();
   obj->type = CELL;
   obj->cell.car = s_nil;
   obj->cell.cdr = s_nil;
   return obj;
 }
 
-object *cons(object *car, object *cdr) {
-  object *obj = make_cell();
+Object *cons(Object *car, Object *cdr) {
+  Object *obj = make_cell();
   obj->cell.car = car;
   obj->cell.cdr = cdr;
   return obj;
 }
 
-object *make_string(char *str) {
-  object *obj = new_object();
+Object *make_string(char *str) {
+  Object *obj = new_Object();
   obj->type = STRING;
   obj->str.text = strdup(str);
   return obj;
 }
 
-object *make_fixnum(int n) {
-  object *obj = new_object();
+Object *make_fixnum(int n) {
+  Object *obj = new_Object();
   obj->type = FIXNUM;
   obj->num.value = n;
   return obj;
 }
 
-object *make_symbol(char *name) {
-  object *obj = new_object();
+Object *make_symbol(char *name) {
+  Object *obj = new_Object();
   obj->type = SYMBOL;
   obj->symbol.name = strdup(name);
   return obj;
 }
 
-object *make_primitive(primitive_fn *fn) {
-  object *obj = new_object();
+Object *make_primitive(primitive_fn *fn) {
+  Object *obj = new_Object();
   obj->type = PRIMITIVE;
   obj->primitive.fn = fn;
   return obj;
 }
 
-object *make_proc(object *vars, object *body, object *env) {
-  object *obj = new_object();
+Object *make_proc(Object *vars, Object *body, Object *env) {
+  Object *obj = new_Object();
   obj->type = PROC;
   obj->proc.vars = vars;
   obj->proc.body = body;
@@ -186,9 +186,9 @@ object *make_proc(object *vars, object *body, object *env) {
   return obj;
 }
 
-object *lookup_symbol(char *name) {
-  object *cell = symbols;
-  object *sym;
+Object *lookup_symbol(char *name) {
+  Object *cell = symbols;
+  Object *sym;
 
   while (cell != s_nil) {
     sym = car(cell);
@@ -204,8 +204,8 @@ object *lookup_symbol(char *name) {
   return s_nil;
 }
 
-object *intern_symbol(char *name) {
-  object *sym = lookup_symbol(name);
+Object *intern_symbol(char *name) {
+  Object *sym = lookup_symbol(name);
 
   if (sym == s_nil) {
     sym = make_symbol(name);
@@ -215,9 +215,9 @@ object *intern_symbol(char *name) {
   return sym;
 }
 
-object *assoc(object *key, object *list) {
+Object *assoc(Object *key, Object *list) {
   if (list != s_nil) {
-    object *pair = car(list);
+    Object *pair = car(list);
 
     if (car(pair) == key)
       return pair;
@@ -228,7 +228,7 @@ object *assoc(object *key, object *list) {
   return s_nil;
 }
 
-object *primitive_add(object *args) {
+Object *primitive_add(Object *args) {
   long total = 0;
 
   while (args != s_nil) {
@@ -239,7 +239,7 @@ object *primitive_add(object *args) {
   return make_fixnum(total);
 }
 
-object *primitive_sub(object *args) {
+Object *primitive_sub(Object *args) {
   long result = car(args)->num.value;
 
   args = cdr(args);
@@ -251,7 +251,7 @@ object *primitive_sub(object *args) {
   return make_fixnum(result);
 }
 
-object *primitive_mul(object *args) {
+Object *primitive_mul(Object *args) {
   long total = 1;
 
   while (args != s_nil) {
@@ -262,7 +262,7 @@ object *primitive_mul(object *args) {
   return make_fixnum(total);
 }
 
-object *primitive_div(object *args) {
+Object *primitive_div(Object *args) {
   long dividend = car(args)->num.value;
   long divisor = cadr(args)->num.value;
   long quotient = 0;
@@ -302,7 +302,7 @@ void skip_whitespace(FILE *in) {
   }
 }
 
-object *read_string(FILE *in) {
+Object *read_string(FILE *in) {
   char buffer[MAX_BUFFER_SIZE];
   int i = 0;
   char c;
@@ -316,7 +316,7 @@ object *read_string(FILE *in) {
   return make_string(buffer);
 }
 
-object *read_symbol(FILE *in) {
+Object *read_symbol(FILE *in) {
   char buffer[MAX_BUFFER_SIZE];
   int i = 0;
   char c;
@@ -330,12 +330,12 @@ object *read_symbol(FILE *in) {
   buffer[i] = '\0';
   ungetc(c, in);
 
-  object *obj = intern_symbol(buffer);
+  Object *obj = intern_symbol(buffer);
 
   return obj;
 }
 
-object *read_number(FILE *in) {
+Object *read_number(FILE *in) {
   int number = 0;
   char c;
 
@@ -349,12 +349,12 @@ object *read_number(FILE *in) {
   return make_fixnum(number);
 }
 
-object *read_lisp(FILE *);
-void print(object *);
+Object *read_lisp(FILE *);
+void print(Object *);
 
-object *read_list(FILE *in) {
+Object *read_list(FILE *in) {
   char c;
-  object *car, *cdr;
+  Object *car, *cdr;
 
   car = cdr = make_cell();
   car->cell.car = read_lisp(in);
@@ -381,8 +381,8 @@ object *read_list(FILE *in) {
 // strcmp
 // strspn
 // atoi
-object *read_lisp(FILE *in) {
-  object *obj = s_nil;
+Object *read_lisp(FILE *in) {
+  Object *obj = s_nil;
   char c;
 
   skip_whitespace(in);
@@ -417,11 +417,11 @@ void error(char *msg) {
   exit(0);
 }
 
-object *eval_symbol(object *obj, object *env) {
+Object *eval_symbol(Object *obj, Object *env) {
   if (obj == s_nil)
     return obj;
 
-  object *tmp = assoc(obj, env);
+  Object *tmp = assoc(obj, env);
 
   if (tmp != s_nil) {
     return cdr(tmp);
@@ -432,25 +432,25 @@ object *eval_symbol(object *obj, object *env) {
   }
 }
 
-object *extend(object *env, object *var, object *val) {
+Object *extend(Object *env, Object *var, Object *val) {
   return cons(cons(var, val), env);
 }
 
-object *extend_env(object* env, object *var, object *val) {
+Object *extend_env(Object* env, Object *var, Object *val) {
   setcdr(env, extend(cdr(env), var, val));
   return val;
 }
 
-object *eval(object *obj, object *env);
+Object *eval(Object *obj, Object *env);
 
-object *eval_args(object *args, object *env) {
+Object *eval_args(Object *args, Object *env) {
   if (args != s_nil)
     return cons(eval(car(args), env), eval_args(cdr(args), env));
 
   return s_nil;
 }
 
-object *progn(object *forms, object *env) {
+Object *progn(Object *forms, Object *env) {
   if (forms == s_nil)
     return s_nil;
 
@@ -464,14 +464,14 @@ object *progn(object *forms, object *env) {
   return s_nil;
 }
 
-object *multiple_extend_env(object *env, object *vars, object *vals) {
+Object *multiple_extend_env(Object *env, Object *vars, Object *vals) {
   if (vars == s_nil)
     return env;
   else
     return multiple_extend_env(extend(env, car(vars), car(vals)), cdr(vars), cdr(vals));
 }
 
-object *apply(object *proc, object *args, object *env) {
+Object *apply(Object *proc, Object *args, Object *env) {
   if (is_primitive(proc))
     return (*proc->primitive.fn)(args);
 
@@ -483,52 +483,52 @@ object *apply(object *proc, object *args, object *env) {
   return s_nil;
 }
 
-object *eval_list(object *obj, object *env) {
+Object *eval_list(Object *obj, Object *env) {
   if (obj == s_nil)
     return obj;
 
   if (car(obj) == s_define) {
-    object *cell = obj;
-    //object *cell_define = car(cell); // should be symbol named define
+    Object *cell = obj;
+    //Object *cell_define = car(cell); // should be symbol named define
 
     cell = cdr(cell);
-    object *cell_symbol = car(cell);
+    Object *cell_symbol = car(cell);
 
     cell = cdr(cell);
-    object *cell_value = car(cell);
+    Object *cell_value = car(cell);
 
-    object *var = cell_symbol;
-    object *val = eval(cell_value, env);
+    Object *var = cell_symbol;
+    Object *val = eval(cell_value, env);
     extend_env(env, var, val);
 
     return var;
   } else if (car(obj) == s_setq) {
-    object *cell = obj;
-    //object *cell_setq = car(cell); // should be symbol named setq
+    Object *cell = obj;
+    //Object *cell_setq = car(cell); // should be symbol named setq
 
     cell = cdr(cell);
-    object *cell_symbol = car(cell);
+    Object *cell_symbol = car(cell);
 
     cell = cdr(cell);
-    object *cell_value = car(cell);
+    Object *cell_value = car(cell);
 
-    object *pair = assoc(cell_symbol, env);
-    object *newval = eval(cell_value, env);
+    Object *pair = assoc(cell_symbol, env);
+    Object *newval = eval(cell_value, env);
     setcdr(pair, newval);
 
     return newval;
   } else if (car(obj) == s_if) {
-    object *cell = obj;
-    //object *cell_if = car(cell);
+    Object *cell = obj;
+    //Object *cell_if = car(cell);
 
     cell = cdr(cell);
-    object *cell_condition = car(cell);
+    Object *cell_condition = car(cell);
 
     cell = cdr(cell);
-    object *cell_true_branch = car(cell);
+    Object *cell_true_branch = car(cell);
 
     cell = cdr(cell);
-    object *cell_false_branch = car(cell);
+    Object *cell_false_branch = car(cell);
 
     if (eval(cell_condition, env) != s_nil)
       return eval(cell_true_branch, env);
@@ -538,18 +538,18 @@ object *eval_list(object *obj, object *env) {
   } else if (car(obj) == s_quote) {
     return car(cdr(obj));
   } else if (car(obj) == lambda_s) {
-    object *vars = car(cdr(obj));
-    object *body = cdr(cdr(obj));
+    Object *vars = car(cdr(obj));
+    Object *body = cdr(cdr(obj));
     return make_proc(vars, body, env);
   }
 
-  object *proc = eval(car(obj), env);
-  object *args = eval_args(cdr(obj), env);
+  Object *proc = eval(car(obj), env);
+  Object *args = eval_args(cdr(obj), env);
   return apply(proc, args, env);
 }
 
-object *eval(object *obj, object *env) {
-  object *result = s_nil;
+Object *eval(Object *obj, Object *env) {
+  Object *result = s_nil;
 
   if (obj == s_nil)
     return s_nil;
@@ -568,14 +568,14 @@ object *eval(object *obj, object *env) {
       result = eval_list(obj, env);
       break;
     default:
-      printf("\nUnknown object: %d\n", obj->type);
+      printf("\nUnknown Object: %d\n", obj->type);
       break;
   }
 
   return result;
 }
 
-void print_string(object *obj) {
+void print_string(Object *obj) {
   char *str = obj->str.text;
   int len = strlen(str);
   int i = 0;
@@ -589,14 +589,14 @@ void print_string(object *obj) {
   putchar('"');
 }
 
-void print_fixnum(object *obj) {
+void print_fixnum(Object *obj) {
   //printf("Fixnum\n");
   printf("%d", obj->num.value);
 }
 
-void print_cell(object *car) {
+void print_cell(Object *car) {
   printf("(");
-  object *obj = car;
+  Object *obj = car;
 
   while (obj != s_nil) {
     if (obj->type == CELL) {
@@ -615,7 +615,7 @@ void print_cell(object *car) {
   printf(")");
 }
 
-void print(object *obj) {
+void print(Object *obj) {
   if (obj == s_nil)
     return;
 
@@ -636,20 +636,20 @@ void print(object *obj) {
       printf("<PROC>");
       break;
     default:
-      printf("\nUnknown object: %d\n", obj->type);
+      printf("\nUnknown Object: %d\n", obj->type);
       break;
   }
 }
 
-object *prim_cons(object *args) {
+Object *prim_cons(Object *args) {
   return cons(car(args), car(cdr(args)));
 }
 
-object *prim_car(object *args) {
+Object *prim_car(Object *args) {
   return car(car(args));
 }
 
-object *prim_cdr(object *args) {
+Object *prim_cdr(Object *args) {
   return cdr(car(args));
 }
 
@@ -664,7 +664,7 @@ int main(int argc, char* argv[]) {
   s_if = intern_symbol("if");
   lambda_s = intern_symbol("lambda");
 
-  object *env = cons(cons(s_nil, s_nil), s_nil);
+  Object *env = cons(cons(s_nil, s_nil), s_nil);
   extend_env(env, s_t, s_t);
 
   extend_env(env, intern_symbol("+"), make_primitive(primitive_add));
@@ -680,7 +680,7 @@ int main(int argc, char* argv[]) {
          "Use ctrl-c to exit.\n");
 
   while (1) {
-    object *result = s_nil;
+    Object *result = s_nil;
 
     printf("> ");
     result = read_lisp(stdin);
