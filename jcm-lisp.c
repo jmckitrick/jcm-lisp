@@ -432,10 +432,18 @@ Object *eval_symbol(Object *obj, Object *env) {
   }
 }
 
+/*
+ * Returns a list with a new cons cell
+ * containing var and val at the head.
+ */
 Object *extend(Object *env, Object *var, Object *val) {
   return cons(cons(var, val), env);
 }
 
+/*
+ * Set the tail of this env to a new list
+ * with var and val at the head.
+ */
 Object *extend_env(Object* env, Object *var, Object *val) {
   setcdr(env, extend(cdr(env), var, val));
   return val;
@@ -655,6 +663,8 @@ Object *prim_cdr(Object *args) {
 
 int main(int argc, char* argv[]) {
   s_nil = make_symbol("s_nil");
+
+  /* linked list of symbols */
   symbols = cons(s_nil, s_nil);
 
   s_t = intern_symbol("t");
@@ -664,6 +674,7 @@ int main(int argc, char* argv[]) {
   s_if = intern_symbol("if");
   lambda_s = intern_symbol("lambda");
 
+  /* List of lists */
   Object *env = cons(cons(s_nil, s_nil), s_nil);
   extend_env(env, s_t, s_t);
 
@@ -675,7 +686,7 @@ int main(int argc, char* argv[]) {
   extend_env(env, intern_symbol("cons"), make_primitive(prim_cons));
   extend_env(env, intern_symbol("car"), make_primitive(prim_car));
   extend_env(env, intern_symbol("cdr"), make_primitive(prim_cdr));
-  
+
   printf("Welcome to JCM-LISP. "
          "Use ctrl-c to exit.\n");
 
