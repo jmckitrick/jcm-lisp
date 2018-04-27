@@ -68,7 +68,7 @@ struct Object {
     };
 };
 
-Object *symbols;
+Object *symbols;    /* linked list of symbols */
 Object *s_quote;
 Object *s_define;
 Object *s_setq;
@@ -186,6 +186,9 @@ Object *make_proc(Object *vars, Object *body, Object *env) {
     return obj;
 }
 
+/* Walk simple linked list of symbols
+ * for one matching name.
+ */
 Object *lookup_symbol(char *name) {
     Object *cell = symbols;
     Object *sym;
@@ -204,6 +207,11 @@ Object *lookup_symbol(char *name) {
     return s_nil;
 }
 
+/* Lookup a symbol, and return it if found.
+ * If not found, create a new one and
+ * add it to linked list of symbols,
+ * and return the new symbol.
+ */
 Object *intern_symbol(char *name) {
     Object *sym = lookup_symbol(name);
 
@@ -229,7 +237,7 @@ Object *assoc(Object *key, Object *list) {
 }
 
 Object *primitive_add(Object *args) {
-    long total = 0;
+    int total = 0;
 
     while (args != s_nil) {
         total += car(args)->num.value;
@@ -361,7 +369,10 @@ Object *read_list(FILE *in) {
 
     while ((c = getc(in)) != ')') {
         if (c == '.') {
+            // Discard the char after '.'
+            // but we should check for whitespace.
             getc(in);
+            // The rest goes into the cdr.
             cdr->cell.cdr = read_lisp(in);
         } else if (!is_whitespace(c)) {
             ungetc(c, in);
@@ -400,7 +411,7 @@ Object *read_lisp(FILE *in) {
     } else if (isalpha(c)) {
         ungetc(c, in);
         obj = read_symbol(in);
-    } else if (strchr("+-*/", c)) {
+    } else if (strchr("+-/*", c)) {
         ungetc(c, in);
         obj = read_symbol(in);
     } else if (c == ')') {
@@ -423,18 +434,19 @@ Object *eval_symbol(Object *obj, Object *env) {
 
     Object *tmp = assoc(obj, env);
 
-    if (tmp != s_nil) {
-        return cdr(tmp);
-    } else {
-        printf("Undefined symbol '%s'", obj->symbol.name);
-
-        return s_nil;
+    if (tmp == s_nil) {
+        char *buff = NULL;
+        asprintf(&buff, "Undefined symbol '%s'", obj->symbol.name);
+        error(buff);
     }
+
+    return cdr(tmp);
 }
 
 /*
  * Returns a list with a new cons cell
- * containing var and val at the head.
+ * containing var and val at the head
+ * and the existing env in the tail.
  */
 Object *extend(Object *env, Object *var, Object *val) {
     return cons(cons(var, val), env);
@@ -451,6 +463,7 @@ Object *extend_env(Object* env, Object *var, Object *val) {
 
 Object *eval(Object *obj, Object *env);
 
+/* Return list of evaluated args. */
 Object *eval_args(Object *args, Object *env) {
     if (args != s_nil)
         return cons(eval(car(args), env), eval_args(cdr(args), env));
@@ -472,6 +485,7 @@ Object *progn(Object *forms, Object *env) {
     return s_nil;
 }
 
+/* Iterate vars and vals, adding each pair to this env. */
 Object *multiple_extend_env(Object *env, Object *vars, Object *vals) {
     if (vars == s_nil)
         return env;
@@ -507,9 +521,8 @@ Object *eval_list(Object *obj, Object *env) {
 
         Object *var = cell_symbol;
         Object *val = eval(cell_value, env);
-        extend_env(env, var, val);
 
-        return var;
+        return extend_env(env, var, val);
     } else if (car(obj) == s_setq) {
         Object *cell = obj;
         //Object *cell_setq = car(cell); // should be symbol named setq
@@ -548,19 +561,21 @@ Object *eval_list(Object *obj, Object *env) {
     } else if (car(obj) == lambda_s) {
         Object *vars = car(cdr(obj));
         Object *body = cdr(cdr(obj));
+
         return make_proc(vars, body, env);
     }
 
+    /* This list is not a builtin, so treat it as a function call. */
     Object *proc = eval(car(obj), env);
     Object *args = eval_args(cdr(obj), env);
     return apply(proc, args, env);
 }
 
 Object *eval(Object *obj, Object *env) {
-    Object *result = s_nil;
-
     if (obj == s_nil)
-        return s_nil;
+        return obj;
+
+    Object *result = s_nil;
 
     switch (obj->type) {
         case STRING:
@@ -624,8 +639,10 @@ void print_cell(Object *car) {
 }
 
 void print(Object *obj) {
-    if (obj == s_nil)
+    if (obj == s_nil) {
+        printf("nil\n");
         return;
+    }
 
     switch (obj->type) {
         case CELL:
@@ -661,12 +678,41 @@ Object *prim_cdr(Object *args) {
     return cdr(car(args));
 }
 
-int main(int argc, char* argv[]) {
-    s_nil = make_symbol("s_nil");
+Object *primitive_eq_num(Object *a, Object *b) {
+/*
+    printf("Compare 2 nums\n");
+    print_fixnum(a);
+    print_fixnum(b);
+*/
+    int a_val = a->num.value;
+    int b_val = b->num.value;
 
-    /* linked list of symbols */
+    if (a_val == b_val) {
+        //printf("equal!\n");
+        return s_t;
+    } else {
+        //printf("not equal!\n");
+        return s_nil;
+    }
+}
+
+Object *primitive_eq(Object *args) {
+    if (is_fixnum(car(args)) &&
+        is_fixnum(cadr(args))) {
+        return primitive_eq_num(car(args), cadr(args));
+    } else {
+        return s_nil;
+    }
+}
+
+int main(int argc, char* argv[]) {
+    /* Make symbol nil (end of list). */
+    s_nil = make_symbol("nil");
+
+    /* Create empty symbol table. */
     symbols = cons(s_nil, s_nil);
 
+    //s_nil = intern_symbol("nil");
     s_t = intern_symbol("t");
     s_quote = intern_symbol("quote");
     s_setq = intern_symbol("setq");
@@ -674,21 +720,28 @@ int main(int argc, char* argv[]) {
     s_if = intern_symbol("if");
     lambda_s = intern_symbol("lambda");
 
-    /* List of lists */
-    Object *env = cons(cons(s_nil, s_nil), s_nil);
-    extend_env(env, s_t, s_t);
+    /* Create top level environment (list of lists).
+     * Head is empty list and should never change,
+     * so global references to env are stable
+     * and changing the env does not require
+     * returning a new head.
+     */
+    //Object *env = cons(cons(s_nil, s_nil), s_nil);
+    //extend_env(env, s_t, s_t);
+    Object *env = cons(cons(s_t, s_t), s_nil);
 
     extend_env(env, intern_symbol("+"), make_primitive(primitive_add));
     extend_env(env, intern_symbol("-"), make_primitive(primitive_sub));
     extend_env(env, intern_symbol("*"), make_primitive(primitive_mul));
     extend_env(env, intern_symbol("/"), make_primitive(primitive_div));
 
+    extend_env(env, intern_symbol("eq"), make_primitive(primitive_eq));
+
     extend_env(env, intern_symbol("cons"), make_primitive(prim_cons));
     extend_env(env, intern_symbol("car"), make_primitive(prim_car));
     extend_env(env, intern_symbol("cdr"), make_primitive(prim_cdr));
 
-    printf("Welcome to JCM-LISP. "
-           "Use ctrl-c to exit.\n");
+    printf("Welcome to JCM-LISP. Use ctrl-c to exit.\n");
 
     while (1) {
         Object *result = s_nil;
