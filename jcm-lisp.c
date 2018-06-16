@@ -14,15 +14,17 @@
 #include <assert.h>
 
 #define MAX_BUFFER_SIZE 100
+//#define MAX_ALLOC_SIZE  56
+#define MAX_ALLOC_SIZE  100
 
 typedef enum {
   NIL = 1,
-  FIXNUM,
-  STRING,
-  SYMBOL,
-  CELL,
-  PRIMITIVE,
-  PROC
+  FIXNUM = 2,
+  STRING = 3,
+  SYMBOL = 4,
+  CELL = 5,
+  PRIMITIVE = 6,
+  PROC = 7
 } obj_type;
 
 typedef struct Object Object;
@@ -57,6 +59,8 @@ struct Proc {
 
 struct Object {
   obj_type type;
+  char mark;
+  struct Object *next;
 
   union {
     struct Fixnum num;
@@ -67,6 +71,8 @@ struct Object {
     struct Proc proc;
   };
 };
+
+void print(Object *);
 
 Object *symbols;    /* linked list of symbols */
 Object *s_quote;
@@ -79,6 +85,37 @@ Object *s_t;
 //Object *prim_add, *prim_sub, *prim_mul, *prim_div;
 
 Object *lambda_s;
+
+Object *free_list;
+Object *active_list;
+Object *env;
+//Object **stack_root[MAX_ALLOC_SIZE];
+int current_mark;
+int current_stack_offset = 0;
+
+struct StackRoot {
+  void **root;
+  struct StackRoot *next;
+};
+
+struct StackRoot *stack_roots;
+
+void push_stack_root(Object *obj) {
+  /* printf("Push root %X\n", obj); */
+  /* //print((Object *)root); */
+  /* //stack_root[current_stack_offset] = root; */
+  /* //current_stack_offset += (sizeof (Object **)); */
+  /* struct StackRoot sr; */
+  /* sr.root = (void *)&obj; */
+
+  /* sr.next = stack_roots; */
+  /* stack_roots = &sr; */
+}
+
+void pop_stack_root(struct StackRoot *sr) {
+  /* //--current_stack_offset; */
+  /* stack_roots = sr->next; */
+}
 
 int is_fixnum(Object *obj) {
   return (obj && obj->type == FIXNUM);
@@ -128,61 +165,201 @@ void setcar(Object *obj, Object *val) {
 void setcdr(Object *obj, Object *val) {
   obj->cell.cdr = val;
 }
+/*
+void mark(Object *obj) {
+  if (obj == NULL)
+    return;
 
+  obj->mark++;
+
+  switch (obj->type) {
+    case FIXNUM:
+    case STRING:
+    case SYMBOL:
+    case PRIMITIVE:
+      printf("\nMark ");
+      print(obj);
+      break;
+    case CELL:
+      mark(obj->cell.car);
+      mark(obj->cell.cdr);
+      break;
+    case PROC:
+      mark(obj->proc.vars);
+      mark(obj->proc.body);
+      mark(obj->proc.env);
+      break;
+    default:
+      printf("\nMark unknown object: %d\n", obj->type);
+      break;
+  }
+}
+
+void sweep() {
+  Object *obj = active_list;
+
+  while (obj != NULL) {
+    Object *next = obj->next;
+
+    if (obj->mark < current_mark) {
+      printf("\nSweep: ");
+      print(obj);
+
+      switch (obj->type) {
+        case STRING:
+          free(obj->str.text);
+          break;
+        case SYMBOL:
+          free(obj->symbol.name);
+          break;
+        default:
+          break;
+      }
+
+      obj->next = free_list;
+      free_list = obj;
+    }
+
+    obj = next;
+  }
+}
+
+void gc() {
+//  return;
+  printf("GC\n");
+  current_mark++;
+
+  printf("\n--------\nMark symbols:");
+  mark(symbols);
+
+  printf("\n--------\nMark env:");
+  mark(env);
+
+  for (int i = 0; i < current_stack_offset; i++) {
+    printf("\n--------\nMark root %d:", i);
+    printf("Mark root %x\n", (Object *)stack_root[current_stack_offset]);
+    //printf("Mark root %x\n", stack_root[current_stack_offset]);
+    //print((Object *)stack_root[current_stack_offset]);
+    //mark((Object *)stack_root[current_stack_offset]);
+    //mark(stack_root[current_stack_offset]);
+  }
+
+  sweep();
+}
+
+Object *alloc_Object() {
+  Object *obj = free_list;
+
+  if (obj == NULL) {
+    gc();
+  }
+
+  obj = free_list;
+
+  if (obj == NULL) {
+    printf("Out of memory\n");
+    exit(-1);
+  }
+
+  // free_list will point to the object after this one.
+  free_list = obj->next;
+
+  // this object will point to active_list
+  obj->next = active_list;
+
+  // active_list with start this object
+  active_list = obj;
+
+  printf("Allocate an object at %x\n", obj);
+
+  return obj;
+}
+*/
 Object *new_Object() {
   Object *obj = malloc(sizeof(Object));
+  //Object *obj = alloc_Object();
+  obj->mark = 0;
   return obj;
 }
 
 Object *make_cell() {
   Object *obj = new_Object();
+  //Object *obj;
+
+  //push_stack_root(&obj);
+  obj = new_Object();
   obj->type = CELL;
   obj->cell.car = s_nil;
   obj->cell.cdr = s_nil;
+  //pop_stack_root();
   return obj;
 }
 
 Object *cons(Object *car, Object *cdr) {
-  Object *obj = make_cell();
+  Object *obj;
+
+  //push_stack_root(&obj);
+  obj = make_cell();
   obj->cell.car = car;
   obj->cell.cdr = cdr;
+  //pop_stack_root();
   return obj;
 }
 
 Object *make_string(char *str) {
-  Object *obj = new_Object();
+  Object *obj;
+
+  //push_stack_root(&obj);
+  obj = new_Object();
   obj->type = STRING;
   obj->str.text = strdup(str);
+  //pop_stack_root();
   return obj;
 }
 
 Object *make_fixnum(int n) {
-  Object *obj = new_Object();
+  Object *obj;
+
+  //push_stack_root(&obj);
+  obj = new_Object();
   obj->type = FIXNUM;
   obj->num.value = n;
+  //pop_stack_root();
   return obj;
 }
 
 Object *make_symbol(char *name) {
-  Object *obj = new_Object();
+  Object *obj;
+
+  //push_stack_root(&obj);
+  obj = new_Object();
   obj->type = SYMBOL;
   obj->symbol.name = strdup(name);
+  //pop_stack_root();
   return obj;
 }
 
 Object *make_primitive(primitive_fn *fn) {
-  Object *obj = new_Object();
+  Object *obj;
+
+  //push_stack_root(&obj);
+  obj = new_Object();
   obj->type = PRIMITIVE;
   obj->primitive.fn = fn;
+  //pop_stack_root();
   return obj;
 }
 
 Object *make_proc(Object *vars, Object *body, Object *env) {
-  Object *obj = new_Object();
+  Object *obj;
+
+  //push_stack_root(&obj);
+  obj = new_Object();
   obj->type = PROC;
   obj->proc.vars = vars;
   obj->proc.body = body;
   obj->proc.env = env;
+  //pop_stack_root();
   return obj;
 }
 
@@ -358,7 +535,6 @@ Object *read_number(FILE *in) {
 }
 
 Object *read_lisp(FILE *);
-void print(Object *);
 
 Object *read_list(FILE *in) {
   char c;
@@ -500,6 +676,7 @@ Object *apply(Object *proc, Object *args, Object *env) {
   if (is_proc(proc))
     return progn(proc->proc.body, multiple_extend_env(env, proc->proc.vars, args));
 
+  print(proc);
   error("Bad apply");
 
   return s_nil;
@@ -635,27 +812,35 @@ void print_cell(Object *car) {
     if (obj != s_nil)
       printf(" ");
   }
-  printf(")");
+  printf(")\n");
 }
 
 void print(Object *obj) {
+  if (obj == NULL) {
+    printf("NULL ERROR");
+    return;
+  }
+
   if (obj == s_nil) {
-    printf("nil\n");
+    printf("nil");
     return;
   }
 
   switch (obj->type) {
-    case CELL:
-      print_cell(obj);
+    case FIXNUM:
+      print_fixnum(obj);
       break;
     case STRING:
       print_string(obj);
       break;
-    case FIXNUM:
-      print_fixnum(obj);
-      break;
     case SYMBOL:
       printf("%s", obj->symbol.name);
+      break;
+    case CELL:
+      print_cell(obj);
+      break;
+    case PRIMITIVE:
+      printf("<PRIM>");
       break;
     case PROC:
       printf("<PROC>");
@@ -705,7 +890,21 @@ Object *primitive_eq(Object *args) {
   }
 }
 
+void init() {
+  //free_list = NULL;
+  //active_list = NULL;
+  current_mark = 0;
+
+  for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
+    Object *obj = calloc(1, sizeof(struct Object));
+    obj->next = free_list;
+    free_list = obj;
+  }
+}
+
 int main(int argc, char* argv[]) {
+  //init();
+
   /* Make symbol nil (end of list). */
   s_nil = make_symbol("nil");
 
@@ -728,20 +927,22 @@ int main(int argc, char* argv[]) {
    */
   //Object *env = cons(cons(s_nil, s_nil), s_nil);
   //extend_env(env, s_t, s_t);
-  Object *env = cons(cons(s_t, s_t), s_nil);
+  env = cons(cons(s_t, s_t), s_nil);
+
+  extend_env(env, intern_symbol("cons"), make_primitive(prim_cons));
+  extend_env(env, intern_symbol("car"), make_primitive(prim_car));
+  extend_env(env, intern_symbol("cdr"), make_primitive(prim_cdr));
+
+  extend_env(env, intern_symbol("eq"), make_primitive(primitive_eq));
 
   extend_env(env, intern_symbol("+"), make_primitive(primitive_add));
   extend_env(env, intern_symbol("-"), make_primitive(primitive_sub));
   extend_env(env, intern_symbol("*"), make_primitive(primitive_mul));
   extend_env(env, intern_symbol("/"), make_primitive(primitive_div));
 
-  extend_env(env, intern_symbol("eq"), make_primitive(primitive_eq));
+  //gc();
 
-  extend_env(env, intern_symbol("cons"), make_primitive(prim_cons));
-  extend_env(env, intern_symbol("car"), make_primitive(prim_car));
-  extend_env(env, intern_symbol("cdr"), make_primitive(prim_cdr));
-
-  printf("Welcome to JCM-LISP. Use ctrl-c to exit.\n");
+  printf("\nWelcome to JCM-LISP. Use ctrl-c to exit.\n");
 
   while (1) {
     Object *result = s_nil;
