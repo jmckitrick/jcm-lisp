@@ -14,10 +14,15 @@
 #include <assert.h>
 
 #define MAX_BUFFER_SIZE 100
+
 //#define MAX_ALLOC_SIZE  56
 #define MAX_ALLOC_SIZE  100
+//#define MAX_ALLOC_SIZE  10000
+
+#define USE_GC
 
 typedef enum {
+  UNKNOWN = 0,
   NIL = 1,
   FIXNUM = 2,
   STRING = 3,
@@ -89,9 +94,12 @@ Object *lambda_s;
 Object *free_list;
 Object *active_list;
 Object *env;
-//Object **stack_root[MAX_ALLOC_SIZE];
+
+#ifdef USE_GC
+Object **stack_root[MAX_ALLOC_SIZE];
 int current_mark;
 int current_stack_offset = 0;
+#endif
 
 struct StackRoot {
   void **root;
@@ -165,7 +173,7 @@ void setcar(Object *obj, Object *val) {
 void setcdr(Object *obj, Object *val) {
   obj->cell.cdr = val;
 }
-/*
+
 void mark(Object *obj) {
   if (obj == NULL)
     return;
@@ -197,27 +205,38 @@ void mark(Object *obj) {
 
 void sweep() {
   Object *obj = active_list;
+  printf("\nActive list            = %p\n", active_list);
 
   while (obj != NULL) {
     Object *next = obj->next;
+    printf("\nObj at                 = %p\n", active_list);
 
     if (obj->mark < current_mark) {
       printf("\nSweep: ");
-      print(obj);
 
+      // Free any additional allocated memory.
       switch (obj->type) {
         case STRING:
+          print(obj);
           free(obj->str.text);
           break;
         case SYMBOL:
+          print(obj);
           free(obj->symbol.name);
           break;
         default:
+          print(obj);
           break;
       }
 
+      active_list = obj->next;
+      printf("\nActive list now        = %p\n", active_list);
       obj->next = free_list;
       free_list = obj;
+      printf("Free list              = %p\n", free_list);
+    } else {
+      printf("\nDo NOT sweep: ");
+      print(obj);
     }
 
     obj = next;
@@ -225,7 +244,9 @@ void sweep() {
 }
 
 void gc() {
-//  return;
+
+  //return;
+
   printf("GC\n");
   current_mark++;
 
@@ -237,7 +258,7 @@ void gc() {
 
   for (int i = 0; i < current_stack_offset; i++) {
     printf("\n--------\nMark root %d:", i);
-    printf("Mark root %x\n", (Object *)stack_root[current_stack_offset]);
+    printf("Mark root %p\n", (Object *)stack_root[current_stack_offset]);
     //printf("Mark root %x\n", stack_root[current_stack_offset]);
     //print((Object *)stack_root[current_stack_offset]);
     //mark((Object *)stack_root[current_stack_offset]);
@@ -247,6 +268,7 @@ void gc() {
   sweep();
 }
 
+#ifdef USE_GC
 Object *alloc_Object() {
   Object *obj = free_list;
 
@@ -261,23 +283,32 @@ Object *alloc_Object() {
     exit(-1);
   }
 
+  printf("\nFree list before alloc = %p\n", free_list);
+
   // free_list will point to the object after this one.
   free_list = obj->next;
+  printf("Free list after alloc  = %p\n", free_list);
 
   // this object will point to active_list
   obj->next = active_list;
 
-  // active_list with start this object
+  // active_list will start with this object
   active_list = obj;
+  printf("Active list            = %p\n", active_list);
 
-  printf("Allocate an object at %x\n", obj);
+  printf("Allocate an object at  = %p\n", obj);
 
   return obj;
 }
-*/
+#endif
+
 Object *new_Object() {
-  Object *obj = malloc(sizeof(Object));
-  //Object *obj = alloc_Object();
+#ifdef USE_GC
+  Object *obj = alloc_Object();
+#else
+  Object *obj = calloc(sizeof(Object));
+#endif
+
   obj->mark = 0;
   return obj;
 }
@@ -891,19 +922,20 @@ Object *primitive_eq(Object *args) {
 }
 
 void init() {
-  //free_list = NULL;
-  //active_list = NULL;
+  free_list = NULL;
+  active_list = NULL;
   current_mark = 0;
 
   for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
     Object *obj = calloc(1, sizeof(struct Object));
+    obj->type = UNKNOWN;
     obj->next = free_list;
     free_list = obj;
   }
 }
 
 int main(int argc, char* argv[]) {
-  //init();
+  init();
 
   /* Make symbol nil (end of list). */
   s_nil = make_symbol("nil");
