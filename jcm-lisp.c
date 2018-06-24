@@ -20,6 +20,7 @@
 //#define MAX_ALLOC_SIZE  10000
 
 #define USE_GC
+#define DBG_GC
 
 typedef enum {
   UNKNOWN = 0,
@@ -185,8 +186,10 @@ void mark(Object *obj) {
     case STRING:
     case SYMBOL:
     case PRIMITIVE:
+      #ifdef DBG_GC
       printf("\nMark ");
       print(obj);
+      #endif
       break;
     case CELL:
       mark(obj->cell.car);
@@ -212,6 +215,7 @@ void sweep() {
     printf("\nObj at                 = %p\n", active_list);
 
     if (obj->mark < current_mark) {
+      printf("obj->mark: %d\n", obj->mark);
       printf("\nSweep: ");
 
       // Free any additional allocated memory.
@@ -237,6 +241,7 @@ void sweep() {
     } else {
       printf("\nDo NOT sweep: ");
       print(obj);
+      printf("\n");
     }
 
     obj = next;
@@ -247,8 +252,9 @@ void gc() {
 
   //return;
 
-  printf("GC\n");
+  printf("\nGC ----------------------------------------\n");
   current_mark++;
+  printf("Current mark: %d\n", current_mark);
 
   printf("\n--------\nMark symbols:");
   mark(symbols);
@@ -256,14 +262,14 @@ void gc() {
   printf("\n--------\nMark env:");
   mark(env);
 
-  for (int i = 0; i < current_stack_offset; i++) {
-    printf("\n--------\nMark root %d:", i);
-    printf("Mark root %p\n", (Object *)stack_root[current_stack_offset]);
-    //printf("Mark root %x\n", stack_root[current_stack_offset]);
-    //print((Object *)stack_root[current_stack_offset]);
-    //mark((Object *)stack_root[current_stack_offset]);
-    //mark(stack_root[current_stack_offset]);
-  }
+  /* for (int i = 0; i < current_stack_offset; i++) { */
+  /*   printf("\n--------\nMark root %d:", i); */
+  /*   printf("Mark root %p\n", (Object *)stack_root[current_stack_offset]); */
+  /*   //printf("Mark root %x\n", stack_root[current_stack_offset]); */
+  /*   //print((Object *)stack_root[current_stack_offset]); */
+  /*   //mark((Object *)stack_root[current_stack_offset]); */
+  /*   //mark(stack_root[current_stack_offset]); */
+  /* } */
 
   sweep();
 }
@@ -283,20 +289,20 @@ Object *alloc_Object() {
     exit(-1);
   }
 
-  printf("\nFree list before alloc = %p\n", free_list);
+  //printf("\nFree list before alloc = %p\n", free_list);
 
   // free_list will point to the object after this one.
   free_list = obj->next;
-  printf("Free list after alloc  = %p\n", free_list);
+  //printf("Free list after alloc  = %p\n", free_list);
 
   // this object will point to active_list
   obj->next = active_list;
 
   // active_list will start with this object
   active_list = obj;
-  printf("Active list            = %p\n", active_list);
+  //printf("Active list            = %p\n", active_list);
 
-  printf("Allocate an object at  = %p\n", obj);
+  //printf("Allocate an object at  = %p\n", obj);
 
   return obj;
 }
