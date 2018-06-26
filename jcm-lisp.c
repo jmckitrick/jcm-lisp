@@ -19,8 +19,8 @@
 #define MAX_ALLOC_SIZE  100
 //#define MAX_ALLOC_SIZE  10000
 
-#define USE_GC
-#define DBG_GC
+#define GC_ENABLED
+#define GC_DEBUG
 
 typedef enum {
   UNKNOWN = 0,
@@ -96,34 +96,47 @@ Object *free_list;
 Object *active_list;
 Object *env;
 
-#ifdef USE_GC
-Object **stack_root[MAX_ALLOC_SIZE];
+#ifdef GC_ENABLED
+//Object *pinned_variables = NULL;
 int current_mark;
-int current_stack_offset = 0;
+//int current_stack_offset = 0;
 #endif
 
-struct StackRoot {
-  void **root;
-  struct StackRoot *next;
+struct PinnedVariable {
+  Object **variable;
+  struct PinnedVariable *next;
 };
 
-struct StackRoot *stack_roots;
+struct PinnedVariable *pinned_variables;
 
-void push_stack_root(Object *obj) {
-  /* printf("Push root %X\n", obj); */
-  /* //print((Object *)root); */
-  /* //stack_root[current_stack_offset] = root; */
-  /* //current_stack_offset += (sizeof (Object **)); */
-  /* struct StackRoot sr; */
-  /* sr.root = (void *)&obj; */
+void pin_variable(Object **obj) {
+#ifdef GC_DEBUG
+  printf("Pin variable %p at %p\n", *obj, obj);
+  print(*obj);
+#endif
 
-  /* sr.next = stack_roots; */
-  /* stack_roots = &sr; */
+  //pinned_variables[current_stack_offset] = variable;
+  //current_stack_offset += (sizeof (Object **));
+  struct PinnedVariable *pinned_var = calloc(1, sizeof(struct PinnedVariable));
+  assert(pinned_var != NULL);
+  pinned_var->variable = obj;
+
+  pinned_var->next = pinned_variables;
+  pinned_variables = pinned_var;
 }
 
-void pop_stack_root(struct StackRoot *sr) {
-  /* //--current_stack_offset; */
-  /* stack_roots = sr->next; */
+void unpin_variable(Object **variable) {
+  //--current_stack_offset;
+  struct PinnedVariable **v;
+  for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
+    if ((*v)->variable == variable) {
+      struct PinnedVariable *next = (*v)->next;
+      free(*v);
+      *v = next;
+      return;
+    }
+  }
+  assert(0);
 }
 
 int is_fixnum(Object *obj) {
@@ -186,7 +199,7 @@ void mark(Object *obj) {
     case STRING:
     case SYMBOL:
     case PRIMITIVE:
-      #ifdef DBG_GC
+      #ifdef GC_DEBUG
       printf("\nMark ");
       print(obj);
       #endif
@@ -263,18 +276,18 @@ void gc() {
   mark(env);
 
   /* for (int i = 0; i < current_stack_offset; i++) { */
-  /*   printf("\n--------\nMark root %d:", i); */
-  /*   printf("Mark root %p\n", (Object *)stack_root[current_stack_offset]); */
-  /*   //printf("Mark root %x\n", stack_root[current_stack_offset]); */
-  /*   //print((Object *)stack_root[current_stack_offset]); */
-  /*   //mark((Object *)stack_root[current_stack_offset]); */
-  /*   //mark(stack_root[current_stack_offset]); */
+  /*   printf("\n--------\nMark variable %d:", i); */
+  /*   printf("Mark variable %p\n", (Object *)pinned_variables[current_stack_offset]); */
+  /*   //printf("Mark variable %x\n", pinned_variables[current_stack_offset]); */
+  /*   //print((Object *)pinned_variables[current_stack_offset]); */
+  /*   //mark((Object *)pinned_variables[current_stack_offset]); */
+  /*   //mark(pinned_variables[current_stack_offset]); */
   /* } */
 
   sweep();
 }
 
-#ifdef USE_GC
+#ifdef GC_ENABLED
 Object *alloc_Object() {
   Object *obj = free_list;
 
@@ -309,7 +322,7 @@ Object *alloc_Object() {
 #endif
 
 Object *new_Object() {
-#ifdef USE_GC
+#ifdef GC_ENABLED
   Object *obj = alloc_Object();
 #else
   Object *obj = calloc(sizeof(Object));
@@ -323,80 +336,80 @@ Object *make_cell() {
   Object *obj = new_Object();
   //Object *obj;
 
-  //push_stack_root(&obj);
+  pin_variable(&obj);
   obj = new_Object();
   obj->type = CELL;
   obj->cell.car = s_nil;
   obj->cell.cdr = s_nil;
-  //pop_stack_root();
+  unpin_variable(&obj);
   return obj;
 }
 
 Object *cons(Object *car, Object *cdr) {
   Object *obj;
 
-  //push_stack_root(&obj);
+  //pin_variable(obj);
   obj = make_cell();
   obj->cell.car = car;
   obj->cell.cdr = cdr;
-  //pop_stack_root();
+  //unpin_variable(obj);
   return obj;
 }
 
 Object *make_string(char *str) {
   Object *obj;
 
-  //push_stack_root(&obj);
+  //pin_variable(obj);
   obj = new_Object();
   obj->type = STRING;
   obj->str.text = strdup(str);
-  //pop_stack_root();
+  //unpin_variable(obj);
   return obj;
 }
 
 Object *make_fixnum(int n) {
   Object *obj;
 
-  //push_stack_root(&obj);
+  //pin_variable(obj);
   obj = new_Object();
   obj->type = FIXNUM;
   obj->num.value = n;
-  //pop_stack_root();
+  //unpin_variable(obj);
   return obj;
 }
 
 Object *make_symbol(char *name) {
   Object *obj;
 
-  //push_stack_root(&obj);
+  //pin_variable(obj);
   obj = new_Object();
   obj->type = SYMBOL;
   obj->symbol.name = strdup(name);
-  //pop_stack_root();
+  //unpin_variable(obj);
   return obj;
 }
 
 Object *make_primitive(primitive_fn *fn) {
   Object *obj;
 
-  //push_stack_root(&obj);
+  //pin_variable(obj);
   obj = new_Object();
   obj->type = PRIMITIVE;
   obj->primitive.fn = fn;
-  //pop_stack_root();
+  //unpin_variable(obj);
   return obj;
 }
 
 Object *make_proc(Object *vars, Object *body, Object *env) {
   Object *obj;
 
-  //push_stack_root(&obj);
+  //pin_variable(obj);
   obj = new_Object();
   obj->type = PROC;
   obj->proc.vars = vars;
   obj->proc.body = body;
   obj->proc.env = env;
-  //pop_stack_root();
+  //unpin_variable(obj);
   return obj;
 }
 
