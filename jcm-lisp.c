@@ -16,10 +16,11 @@
 #define MAX_BUFFER_SIZE 100
 
 //#define MAX_ALLOC_SIZE  56
-#define MAX_ALLOC_SIZE  100
-//#define MAX_ALLOC_SIZE  10000
+//#define MAX_ALLOC_SIZE  100
+#define MAX_ALLOC_SIZE  10000
 
 #define GC_ENABLED
+//#define GC_SWEEP
 #define GC_DEBUG
 
 typedef enum {
@@ -97,9 +98,8 @@ Object *active_list;
 Object *env;
 
 #ifdef GC_ENABLED
-//Object *pinned_variables = NULL;
+struct PinnedVariable *pinned_variables;
 int current_mark;
-//int current_stack_offset = 0;
 #endif
 
 struct PinnedVariable {
@@ -107,16 +107,13 @@ struct PinnedVariable {
   struct PinnedVariable *next;
 };
 
-struct PinnedVariable *pinned_variables;
-
 void pin_variable(Object **obj) {
 #ifdef GC_DEBUG
-  printf("Pin variable %p at %p\n", *obj, obj);
+  printf("Pin variable %p\n", obj);
   print(*obj);
+  printf("\n");
 #endif
 
-  //pinned_variables[current_stack_offset] = variable;
-  //current_stack_offset += (sizeof (Object **));
   struct PinnedVariable *pinned_var = calloc(1, sizeof(struct PinnedVariable));
   assert(pinned_var != NULL);
   pinned_var->variable = obj;
@@ -126,7 +123,13 @@ void pin_variable(Object **obj) {
 }
 
 void unpin_variable(Object **variable) {
-  //--current_stack_offset;
+
+#ifdef GC_DEBUG
+  printf("Unpin variable %p\n", variable);
+  print(*variable);
+  printf("\n");
+#endif
+
   struct PinnedVariable **v;
   for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
     if ((*v)->variable == variable) {
@@ -275,16 +278,9 @@ void gc() {
   printf("\n--------\nMark env:");
   mark(env);
 
-  /* for (int i = 0; i < current_stack_offset; i++) { */
-  /*   printf("\n--------\nMark variable %d:", i); */
-  /*   printf("Mark variable %p\n", (Object *)pinned_variables[current_stack_offset]); */
-  /*   //printf("Mark variable %x\n", pinned_variables[current_stack_offset]); */
-  /*   //print((Object *)pinned_variables[current_stack_offset]); */
-  /*   //mark((Object *)pinned_variables[current_stack_offset]); */
-  /*   //mark(pinned_variables[current_stack_offset]); */
-  /* } */
-
+#ifdef GC_SWEEP
   sweep();
+#endif
 }
 
 #ifdef GC_ENABLED
