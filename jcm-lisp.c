@@ -16,12 +16,12 @@
 #define MAX_BUFFER_SIZE 100
 
 //#define MAX_ALLOC_SIZE  56
-//#define MAX_ALLOC_SIZE  100
-#define MAX_ALLOC_SIZE  10000
+#define MAX_ALLOC_SIZE  100
+//#define MAX_ALLOC_SIZE  10000
 
-#define GC_ENABLED
+//#define GC_ENABLED
 //#define GC_SWEEP
-#define GC_DEBUG
+//#define GC_DEBUG
 
 typedef enum {
   UNKNOWN = 0,
@@ -107,6 +107,7 @@ struct PinnedVariable {
   struct PinnedVariable *next;
 };
 
+#ifdef GC_ENABLED
 void pin_variable(Object **obj) {
 #ifdef GC_DEBUG
   printf("Pin variable %p\n", obj);
@@ -121,7 +122,9 @@ void pin_variable(Object **obj) {
   pinned_var->next = pinned_variables;
   pinned_variables = pinned_var;
 }
+#endif
 
+#ifdef GC_ENABLED
 void unpin_variable(Object **variable) {
 
 #ifdef GC_DEBUG
@@ -141,6 +144,7 @@ void unpin_variable(Object **variable) {
   }
   assert(0);
 }
+#endif
 
 int is_fixnum(Object *obj) {
   return (obj && obj->type == FIXNUM);
@@ -191,6 +195,7 @@ void setcdr(Object *obj, Object *val) {
   obj->cell.cdr = val;
 }
 
+#ifdef GC_ENABLED
 void mark(Object *obj) {
   if (obj == NULL)
     return;
@@ -202,10 +207,10 @@ void mark(Object *obj) {
     case STRING:
     case SYMBOL:
     case PRIMITIVE:
-      #ifdef GC_DEBUG
+#ifdef GC_DEBUG
       printf("\nMark ");
       print(obj);
-      #endif
+#endif
       break;
     case CELL:
       mark(obj->cell.car);
@@ -283,7 +288,6 @@ void gc() {
 #endif
 }
 
-#ifdef GC_ENABLED
 Object *alloc_Object() {
   Object *obj = free_list;
 
@@ -321,7 +325,7 @@ Object *new_Object() {
 #ifdef GC_ENABLED
   Object *obj = alloc_Object();
 #else
-  Object *obj = calloc(sizeof(Object));
+  Object *obj = calloc(1, sizeof(Object));
 #endif
 
   obj->mark = 0;
@@ -332,12 +336,16 @@ Object *make_cell() {
   Object *obj = new_Object();
   //Object *obj;
 
+#ifdef GC_ENABLED
   pin_variable(&obj);
-  obj = new_Object();
+#endif
+  //obj = new_Object();
   obj->type = CELL;
   obj->cell.car = s_nil;
   obj->cell.cdr = s_nil;
+#ifdef GC_ENABLED
   unpin_variable(&obj);
+#endif
   return obj;
 }
 
@@ -939,7 +947,10 @@ Object *primitive_eq(Object *args) {
 void init() {
   free_list = NULL;
   active_list = NULL;
+
+#ifdef GC_ENABLED
   current_mark = 0;
+#endif
 
   for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
     Object *obj = calloc(1, sizeof(struct Object));
