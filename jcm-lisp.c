@@ -16,10 +16,11 @@
 #define MAX_BUFFER_SIZE 100
 
 //#define MAX_ALLOC_SIZE  56
-#define MAX_ALLOC_SIZE  100
-//#define MAX_ALLOC_SIZE  10000
+//#define MAX_ALLOC_SIZE  100
+#define MAX_ALLOC_SIZE  10000
 
 //#define GC_ENABLED
+//#define GC_MARK
 //#define GC_SWEEP
 //#define GC_DEBUG
 
@@ -271,8 +272,7 @@ void sweep() {
 
 void gc() {
 
-  //return;
-
+#ifdef GC_MARK
   printf("\nGC ----------------------------------------\n");
   current_mark++;
   printf("Current mark: %d\n", current_mark);
@@ -282,6 +282,7 @@ void gc() {
 
   printf("\n--------\nMark env:");
   mark(env);
+#endif
 
 #ifdef GC_SWEEP
   sweep();
@@ -424,18 +425,24 @@ Object *lookup_symbol(char *name) {
   Object *cell = symbols;
   Object *sym;
 
+  //printf("Symbol for lookup %s\n", name);
+
   while (cell != s_nil) {
     sym = car(cell);
 
+    //printf("Symbol for lookup comparison? %d %s\n", is_symbol(sym), sym->symbol.name);
+
     if (is_symbol(sym) &&
         strcmp(sym->symbol.name, name) == 0) {
+      //printf("Symbol lookup succeeded\n");
       return sym;
     }
 
     cell = cdr(cell);
   }
 
-  return s_nil;
+  return NULL;
+  //return s_nil;
 }
 
 /* Lookup a symbol, and return it if found.
@@ -446,7 +453,7 @@ Object *lookup_symbol(char *name) {
 Object *intern_symbol(char *name) {
   Object *sym = lookup_symbol(name);
 
-  if (sym == s_nil) {
+  if (sym == NULL) {
     sym = make_symbol(name);
     symbols = cons(sym, symbols);
   }
@@ -659,8 +666,13 @@ void error(char *msg) {
 }
 
 Object *eval_symbol(Object *obj, Object *env) {
-  if (obj == s_nil)
+  printf("s_nil %p\n", s_nil);
+  printf("Symbol? %p\n", obj);
+  printf("Symbol name? '%s'\n", obj->symbol.name);
+  if (obj == s_nil) {
+    printf("\ns_nil??\n");
     return obj;
+  }
 
   Object *tmp = assoc(obj, env);
 
@@ -803,8 +815,8 @@ Object *eval_list(Object *obj, Object *env) {
 }
 
 Object *eval(Object *obj, Object *env) {
-  if (obj == s_nil)
-    return obj;
+  /* if (obj == s_nil) */
+  /*   return obj; */
 
   Object *result = s_nil;
 
@@ -875,10 +887,10 @@ void print(Object *obj) {
     return;
   }
 
-  if (obj == s_nil) {
-    printf("nil");
-    return;
-  }
+  /* if (obj == s_nil) { */
+  /*   printf("nil"); */
+  /*   return; */
+  /* } */
 
   switch (obj->type) {
     case FIXNUM:
@@ -968,6 +980,7 @@ int main(int argc, char* argv[]) {
 
   /* Create empty symbol table. */
   symbols = cons(s_nil, s_nil);
+  //symbols = cons(NULL, NULL);
 
   //s_nil = intern_symbol("nil");
   s_t = intern_symbol("t");
@@ -998,7 +1011,9 @@ int main(int argc, char* argv[]) {
   extend_env(env, intern_symbol("*"), make_primitive(primitive_mul));
   extend_env(env, intern_symbol("/"), make_primitive(primitive_div));
 
-  //gc();
+#ifdef GC_ENABLED
+  gc();
+#endif
 
   printf("\nWelcome to JCM-LISP. Use ctrl-c to exit.\n");
 
