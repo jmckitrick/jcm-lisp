@@ -15,14 +15,18 @@
 
 #define MAX_BUFFER_SIZE 100
 
+//#define MAX_ALLOC_SIZE  24
 //#define MAX_ALLOC_SIZE  56
-#define MAX_ALLOC_SIZE  100
+//#define MAX_ALLOC_SIZE  64
+//#define MAX_ALLOC_SIZE  128
+#define MAX_ALLOC_SIZE  1000
 //#define MAX_ALLOC_SIZE  10000
 
 #define GC_ENABLED
 #define GC_MARK
 #define GC_SWEEP
-#define GC_DEBUG
+//#define GC_DEBUG
+//#define GC_DEBUG_X
 
 typedef enum {
   UNKNOWN = 0,
@@ -111,8 +115,8 @@ struct PinnedVariable {
 #ifdef GC_ENABLED
 void pin_variable(Object **obj) {
 
-#ifdef GC_DEBUG
-  //printf("> variable %p\n", obj);
+#ifdef GC_DEBUG_X
+  printf("> variable %p\n", obj);
 #endif
 
   struct PinnedVariable *pinned_var = calloc(1, sizeof(struct PinnedVariable));
@@ -121,14 +125,14 @@ void pin_variable(Object **obj) {
 
   pinned_var->next = pinned_variables;
 
-#ifdef GC_DEBUG
-  //printf("Pinned variables before %p\n", pinned_variables);
+#ifdef GC_DEBUG_X
+  printf("Pinned variables before %p\n", pinned_variables);
 #endif
 
   pinned_variables = pinned_var;
 
-#ifdef GC_DEBUG
-  //printf("Pinned variables after %p\n", pinned_variables);
+#ifdef GC_DEBUG_X
+  printf("Pinned variables after %p\n", pinned_variables);
 #endif
 }
 #else
@@ -138,22 +142,22 @@ void pin_variable(Object **obj) { }
 #ifdef GC_ENABLED
 void unpin_variable(Object **variable) {
 
-#ifdef GC_DEBUG
-  //printf("< variable %p\n", variable);
+#ifdef GC_DEBUG_X
+  printf("< variable %p\n", variable);
 #endif
 
   struct PinnedVariable **v;
   for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
     if ((*v)->variable == variable) {
 
-#ifdef GC_DEBUG
-      //printf("Pinned variable  found %p\n", *v);
+#ifdef GC_DEBUG_X
+      printf("Pinned variable  found %p\n", *v);
 #endif
       struct PinnedVariable *next = (*v)->next;
       free(*v);
       *v = next;
-#ifdef GC_DEBUG
-      //printf("Pinned variable head %p\n", *v);
+#ifdef GC_DEBUG_X
+      printf("Pinned variable head %p\n", *v);
 #endif
       return;
     }
@@ -234,16 +238,23 @@ void setcdr(Object *obj, Object *val) {
 
 #ifdef GC_ENABLED
 void mark(Object *obj) {
-  if (obj == NULL || obj->mark == 1)
+  if (obj == NULL
+      //|| obj->mark == 1
+    )
+  {
+#ifdef GC_DEBUG
+    printf("\nNothing to mark");
+#endif
     return;
+  }
 
   //sleep(1);
 
-#ifdef GC_DEBUG
+#ifdef GC_DEBUG_X
   printf("\nBefore mark: %d", obj->mark);
 #endif
 
-  /* if (obj->mark > current_mark) { */
+  /* if (obj->mark > current_mark + 10) { */
   /*   printf("\nToo many marks:\n"); */
   /*   print(obj); */
   /*   exit(-1); */
@@ -253,7 +264,7 @@ void mark(Object *obj) {
   //obj->mark = current_mark;
   obj->mark = 1;
 
-#ifdef GC_DEBUG
+#ifdef GC_DEBUG_X
   printf("\nAfter mark: %d", obj->mark);
 #endif
 
@@ -312,28 +323,34 @@ void mark(Object *obj) {
 
 void sweep() {
   Object *obj = active_list;
+  int counted = 0, kept = 0, swept = 0;
+
   printf("Active list            = %p\n", active_list);
+  printf("Free list              = %p\n", free_list);
 
   while (obj != NULL) {
     Object *next = obj->next;
-    printf("\nObj at                 = %p\n", active_list);
+#ifdef GC_DEBUG_X
+    printf("\nObj at                 = %p\n", obj);
+#endif
 
     if (obj->mark == 0) {
-      printf("obj->mark: %d\n", obj->mark);
-      printf("Sweep: ");
+      //printf("obj->mark: %d\n", obj->mark);
+      printf("SWEEP: ");
+      print(obj);
 
       // Free any additional allocated memory.
       switch (obj->type) {
         case STRING:
-          print(obj);
+          memset(obj->str.text, 0, strlen(obj->str.text));
           free(obj->str.text);
           break;
         case SYMBOL:
-          print(obj);
+          memset(obj->symbol.name, 0, strlen(obj->symbol.name));
           free(obj->symbol.name);
           break;
         default:
-          print(obj);
+          printf("\n");
           break;
       }
 
@@ -341,21 +358,40 @@ void sweep() {
       printf("Active list now        = %p\n", active_list);
       obj->next = free_list;
       free_list = obj;
-      printf("Free list              = %p\n", free_list);
+      printf("Free list now          = %p\n", free_list);
+      swept++;
     } else {
+#ifdef GC_DEBUG_X
       printf("Do NOT sweep: ");
-      obj->mark = 0;
       print(obj);
-      //printf("\n");
-    }
+#endif
+      obj->mark = 0;
 
+#ifdef GC_DEBUG
+      // Pretty-print
+      switch (obj->type) {
+        case STRING:
+          break;
+        case SYMBOL:
+          break;
+        default:
+          //printf("\n");
+          break;
+      }
+#endif
+      kept++;
+    }
     obj = next;
+    counted++;
   }
+#ifdef GC_DEBUG
+  printf("\nDone sweep: %d kept %d swept %d counted\n", kept, swept, counted);
+#endif
 }
 
 void gc() {
 
-  printf("\nGC ----------------------------------------\n");
+  printf("\nGC v----------------------------------------v\n");
 
 #ifdef GC_MARK
   /* current_mark++; */
@@ -373,17 +409,15 @@ void gc() {
   sweep();
 #endif
 
-  printf("\nGC ----------------------------------------\n");
+  printf("\nGC ^----------------------------------------^\n");
 }
 
 Object *alloc_Object() {
-  Object *obj = free_list;
-
-  if (obj == NULL) {
+  if (free_list == NULL) {
     gc();
   }
 
-  obj = free_list;
+  Object *obj = free_list;
 
   if (obj == NULL) {
     printf("Out of memory\n");
@@ -416,6 +450,7 @@ Object *new_Object() {
   Object *obj = calloc(1, sizeof(Object));
 #endif
 
+  obj->type = UNKNOWN;
   obj->mark = 0;
   return obj;
 }
@@ -524,8 +559,8 @@ Object *lookup_symbol(char *name) {
     cell = cdr(cell);
   }
 
-  return NULL;
-  //return s_nil;
+  //return NULL;
+  return s_nil;
 }
 
 /* Lookup a symbol, and return it if found.
@@ -536,7 +571,8 @@ Object *lookup_symbol(char *name) {
 Object *intern_symbol(char *name) {
   Object *sym = lookup_symbol(name);
 
-  if (sym == NULL) {
+  if (sym == s_nil) {
+    //printf("Make symbol %s\n", name);
     sym = make_symbol(name);
     symbols = cons(sym, symbols);
   }
@@ -1048,7 +1084,7 @@ void init() {
   active_list = NULL;
 
 #ifdef GC_ENABLED
-  current_mark = 0;
+  current_mark = 1;
 #endif
 
   for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
@@ -1067,9 +1103,7 @@ int main(int argc, char* argv[]) {
 
   /* Create empty symbol table. */
   symbols = cons(s_nil, s_nil);
-  //symbols = cons(NULL, NULL);
 
-  //s_nil = intern_symbol("nil");
   s_t = intern_symbol("t");
   s_quote = intern_symbol("quote");
   s_setq = intern_symbol("setq");
@@ -1099,7 +1133,7 @@ int main(int argc, char* argv[]) {
   extend_env(env, intern_symbol("/"), make_primitive(primitive_div));
 
 #ifdef GC_ENABLED
-  gc();
+  //gc();
 #endif
 
   printf("\nWelcome to JCM-LISP. Use ctrl-c to exit.\n");
