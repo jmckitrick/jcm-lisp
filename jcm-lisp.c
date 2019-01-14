@@ -28,7 +28,7 @@
 #define GC_MARK
 #define GC_SWEEP
 #define GC_DEBUG
-#define GC_DEBUG_X
+//#define GC_DEBUG_X
 #define GC_TEST
 
 typedef enum {
@@ -74,7 +74,7 @@ struct Proc {
 
 struct Object {
   obj_type type;
-  char mark;
+  int mark;
   struct Object *next;
 
   union {
@@ -99,7 +99,7 @@ Object *s_t;
 
 //Object *prim_add, *prim_sub, *prim_mul, *prim_div;
 
-Object *lambda_s;
+Object *s_lambda;
 
 Object *free_list;
 Object *active_list;
@@ -252,10 +252,10 @@ void mark(Object *obj) {
     return;
   }
 
-  if (obj->mark == 1)
+  if (obj->mark > 0)
   {
 #ifdef GC_DEBUG
-    printf("\n");
+    printf("Mark:\n");
     print(obj);
     printf("\nNothing to mark: already marked");
 #endif
@@ -344,12 +344,12 @@ void sweep() {
 
   while (obj != NULL) {
     Object *next = obj->next;
-#ifdef GC_DEBUG_X
+#ifdef GC_DEBUG
     printf("\nObj at                 = %p\n", obj);
 #endif
 
     if (obj->mark == 0) {
-      //printf("obj->mark: %d\n", obj->mark);
+      printf("obj->mark: %d\n", obj->mark);
       printf("SWEEP: %p ", obj);
       print(obj);
 
@@ -380,11 +380,11 @@ void sweep() {
       swept++;
     } else {
       obj->mark = 0;
-//#ifdef GC_DEBUG_X
+#ifdef GC_DEBUG
       printf("Mark it ZERO! %d ", obj->mark);
       printf("Do NOT sweep: ");
       print(obj);
-//#endif
+#endif
 
 #ifdef GC_DEBUG
       // Pretty-print
@@ -432,7 +432,8 @@ void gc() {
   while (*pv != NULL) {
     printf("pinned_variable = %p\n", *pv);
     print((struct Object *)(*pv)->variable);
-    ((struct Object *)(*pv)->variable)->mark = current_mark;
+    //((struct Object *)(*pv)->variable)->mark = current_mark;
+    ((struct Object *)(*pv)->variable)->mark = 99;
     pv = &(*pv)->next;
   }
   /* while (*pv != NULL) { */
@@ -962,7 +963,7 @@ Object *eval_list(Object *obj, Object *env) {
 
   } else if (car(obj) == s_quote) {
     return car(cdr(obj));
-  } else if (car(obj) == lambda_s) {
+  } else if (car(obj) == s_lambda) {
     Object *vars = car(cdr(obj));
     Object *body = cdr(cdr(obj));
 
@@ -1138,7 +1139,7 @@ int main(int argc, char* argv[]) {
   symbols = cons(s_nil, s_nil);
 
   s_t = intern_symbol("t");
-  lambda_s = intern_symbol("lambda");
+  s_lambda = intern_symbol("lambda");
   s_define = intern_symbol("define");
   /* s_quote = intern_symbol("quote"); */
   /* s_setq = intern_symbol("setq"); */
@@ -1170,14 +1171,18 @@ int main(int argc, char* argv[]) {
 #ifdef GC_TEST
   printf("\nv----------------------------------------v\n");
   printf("\nRunning GC tests.\n");
-  // Need to build a lambda:
+  current_mark = 10;
+  // Build a lambda:
   // (define foo (lambda (a) a))
   // intern foo
   // cons symbol define, symbol foo, cons symbol lambda, cons symbol a, a
-  Object *define = intern_symbol("define");
+  Object *define = s_define; //intern_symbol("define");
   Object *foo = intern_symbol("foo");
-  Object *lambda = intern_symbol("lambda");
+  Object *lambda = s_lambda; //intern_symbol("lambda");
   Object *a = intern_symbol("a");
+
+  printf("\n a @ %p\n", a);
+  print(a);
 
   // (a)
   Object *args_car = make_cell();
@@ -1231,6 +1236,8 @@ int main(int argc, char* argv[]) {
   foo_car1->cell.cdr = make_cell();
   foo_car1->cell.cdr->cell.car = int_1;
 
+  printf("\n a @ %p\n", a);
+
   print(a);
   printf("\n");
   print(args_car);
@@ -1242,23 +1249,55 @@ int main(int argc, char* argv[]) {
   print(define_car);
   print(foo_car1);
 
+  //current_mark = 100;
   Object *resultGC = NULL;
   /* printf("\nPass 0\n"); */
   /* gc(); */
   printf("\nPass 1\n");
   resultGC = eval(define_car, env);
+  printf("\n a @ %p\n", a);
+  print(a);
+  //print(eval(a, env));
+  printf("---->\n");
+  print(resultGC);
+  printf("\n a @ %p\n", a);
+  print(a);
+  //print(eval(a, env));
+  printf("\n");
+  printf("\n");
+  resultGC = eval(foo_car1, env);
+  printf("\n a @ %p\n", a);
+  print(a);
+  //print(eval(a, env));
   printf("---->\n");
   print(resultGC);
   printf("\n");
   printf("\n");
+
+  //gc();
+  printf("\n a @ %p\n", a);
+  print(a);
+  print(eval(a, env));
+
+  //current_mark = 1000;
+  //gc();
+  printf("\n a @ %p\n", a);
+  print(a);
+  print(eval(a, env));
+
+  //current_mark = 10000;
+  //gc();
+  printf("\n a @ %p\n", a);
+  print(a);
+  print(eval(a, env));
+
+  printf("\nPass 2\n");
   resultGC = eval(foo_car1, env);
   printf("---->\n");
   print(resultGC);
   printf("\n");
   printf("\n");
 
-  /* gc(); */
-  /* printf("\nPass 2\n"); */
   /* resultGC = eval(define_car, env); */
   /* gc(); */
   /* printf("\nPass 3\n"); */
