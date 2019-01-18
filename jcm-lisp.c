@@ -74,8 +74,6 @@ struct Proc {
 
 struct Object {
   obj_type type;
-  int mark;
-  struct Object *next;
 
   union {
     struct Fixnum num;
@@ -85,6 +83,9 @@ struct Object {
     struct Primitive primitive;
     struct Proc proc;
   };
+
+  int mark;
+  struct Object *next;
 };
 
 void print(Object *);
@@ -251,7 +252,9 @@ void mark(Object *obj) {
 #endif
     return;
   }
-
+#ifdef GC_DEBUG
+  Object *temp = obj; printf("\nMarking %p\n", temp);
+#endif
   if (obj->mark > 0)
   {
 #ifdef GC_DEBUG
@@ -622,14 +625,14 @@ Object *intern_symbol(char *name) {
 Object *assoc(Object *key, Object *list) {
   if (list != s_nil) {
     Object *pair = car(list);
-
+    printf("\nAssoc check %s\n", car(pair)->symbol.name); // 3004d0
     if (car(pair) == key)
       return pair;
 
     return assoc(key, cdr(list));
   }
 
-  return s_nil;
+  return NULL;
 }
 
 Object *primitive_add(Object *args) {
@@ -834,7 +837,7 @@ Object *eval_symbol(Object *obj, Object *env) {
 
   Object *tmp = assoc(obj, env);
 
-  if (tmp == s_nil) {
+  if (tmp == NULL) {
     char *buff = NULL;
     asprintf(&buff, "Undefined symbol '%s'", obj->symbol.name);
     error(buff);
@@ -1274,22 +1277,15 @@ int main(int argc, char* argv[]) {
   printf("\n");
   printf("\n");
 
-  //gc();
-  printf("\n a @ %p\n", a);
-  print(a);
-  print(eval(a, env));
+  printf("---->\n");
+  printf("---->\n");
+  gc();
 
   //current_mark = 1000;
-  //gc();
-  printf("\n a @ %p\n", a);
-  print(a);
-  print(eval(a, env));
+  gc();
 
   //current_mark = 10000;
-  //gc();
-  printf("\n a @ %p\n", a);
-  print(a);
-  print(eval(a, env));
+  gc();
 
   printf("\nPass 2\n");
   resultGC = eval(foo_car1, env);
