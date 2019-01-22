@@ -17,11 +17,11 @@
 
 //#define MAX_ALLOC_SIZE  24
 //#define MAX_ALLOC_SIZE  32
-#define MAX_ALLOC_SIZE  48
+//#define MAX_ALLOC_SIZE  48
 //#define MAX_ALLOC_SIZE  56
 //#define MAX_ALLOC_SIZE  64
 //#define MAX_ALLOC_SIZE  128
-//#define MAX_ALLOC_SIZE  1000
+#define MAX_ALLOC_SIZE  1000
 //#define MAX_ALLOC_SIZE  10000
 
 #define GC_ENABLED
@@ -29,7 +29,7 @@
 #define GC_SWEEP
 #define GC_DEBUG
 //#define GC_DEBUG_X
-#define GC_TEST
+//#define GC_TEST
 
 typedef enum {
   UNKNOWN = 0,
@@ -465,20 +465,27 @@ Object *alloc_Object() {
 
   Object *obj = free_list;
 
+#ifdef GC_DEBUG_X
   printf("\nFree list before alloc = %p\n", free_list);
+#endif
 
   // free_list will point to the object after this one.
   free_list = obj->next;
+
+#ifdef GC_DEBUG_X
   printf("Free list after alloc  = %p\n", free_list);
+#endif
 
   // this object will point to active_list
   obj->next = active_list;
 
   // active_list will start with this object
   active_list = obj;
-  printf("Active list            = %p\n", active_list);
 
+#ifdef GC_DEBUG_X
+  printf("Active list            = %p\n", active_list);
   printf("Allocate an object at  = %p\n", obj);
+#endif
 
   return obj;
 }
@@ -625,7 +632,7 @@ Object *intern_symbol(char *name) {
 Object *assoc(Object *key, Object *list) {
   if (list != s_nil) {
     Object *pair = car(list);
-    printf("\nAssoc check %s\n", car(pair)->symbol.name); // 3004d0
+    //printf("\nAssoc check %s\n", car(pair)->symbol.name);
     if (car(pair) == key)
       return pair;
 
@@ -770,6 +777,7 @@ Object *read_list(FILE *in) {
       // Discard the char after '.'
       // but we should check for whitespace.
       getc(in);
+
       // The rest goes into the cdr.
       cdr->cell.cdr = read_lisp(in);
     } else if (!is_whitespace(c)) {
@@ -1144,9 +1152,9 @@ int main(int argc, char* argv[]) {
   s_t = intern_symbol("t");
   s_lambda = intern_symbol("lambda");
   s_define = intern_symbol("define");
-  /* s_quote = intern_symbol("quote"); */
-  /* s_setq = intern_symbol("setq"); */
-  /* s_if = intern_symbol("if"); */
+  s_quote = intern_symbol("quote");
+  s_setq = intern_symbol("setq");
+  s_if = intern_symbol("if");
 
   /* Create top level environment (list of lists).
    * Head is empty list and should never change,
@@ -1156,16 +1164,16 @@ int main(int argc, char* argv[]) {
    */
   env = cons(cons(s_nil, s_nil), s_nil);
 
-  /* extend_env(env, intern_symbol("cons"), make_primitive(prim_cons)); */
-  /* extend_env(env, intern_symbol("car"), make_primitive(prim_car)); */
-  /* extend_env(env, intern_symbol("cdr"), make_primitive(prim_cdr)); */
+  extend_env(env, intern_symbol("cons"), make_primitive(prim_cons));
+  extend_env(env, intern_symbol("car"), make_primitive(prim_car));
+  extend_env(env, intern_symbol("cdr"), make_primitive(prim_cdr));
 
-  /* extend_env(env, intern_symbol("eq"), make_primitive(primitive_eq)); */
+  extend_env(env, intern_symbol("eq"), make_primitive(primitive_eq));
 
-  /* extend_env(env, intern_symbol("+"), make_primitive(primitive_add)); */
-  /* extend_env(env, intern_symbol("-"), make_primitive(primitive_sub)); */
-  /* extend_env(env, intern_symbol("*"), make_primitive(primitive_mul)); */
-  /* extend_env(env, intern_symbol("/"), make_primitive(primitive_div)); */
+  extend_env(env, intern_symbol("+"), make_primitive(primitive_add));
+  extend_env(env, intern_symbol("-"), make_primitive(primitive_sub));
+  extend_env(env, intern_symbol("*"), make_primitive(primitive_mul));
+  extend_env(env, intern_symbol("/"), make_primitive(primitive_div));
 
 #ifdef GC_ENABLED
   //gc();
