@@ -30,6 +30,7 @@
 #define GC_DEBUG
 #define GC_DEBUG_X
 #define GC_TEST
+//#define GC_PIN
 
 typedef enum {
   UNKNOWN = 0,
@@ -106,17 +107,18 @@ Object *free_list;
 Object *active_list;
 Object *env;
 
-#ifdef GC_ENABLED
+int current_mark;
+
+#ifdef GC_PIN
 struct PinnedVariable {
   Object **variable;
   struct PinnedVariable *next;
 };
 
 struct PinnedVariable *pinned_variables;
-int current_mark;
 #endif
 
-#ifdef GC_ENABLED
+#ifdef GC_PIN
 void pin_variable(Object **obj) {
 
 #ifdef GC_DEBUG_X
@@ -146,7 +148,7 @@ void pin_variable(Object **obj) {
 void pin_variable(Object **obj) { }
 #endif
 
-#ifdef GC_ENABLED
+#ifdef GC_PIN
 void unpin_variable(Object **variable) {
 
 #ifdef GC_DEBUG_X
@@ -240,6 +242,9 @@ void setcar(Object *obj, Object *val) {
 }
 
 void setcdr(Object *obj, Object *val) {
+  if (obj->cell.cdr != NULL && obj->cell.cdr != s_nil) {
+    printf("Changing %p to %p\n", obj->cell.cdr, val);
+  }
   obj->cell.cdr = val;
 }
 
@@ -428,6 +433,7 @@ void gc() {
   printf("\n-------- Mark env:");
   mark(env);
 
+#ifdef GC_PIN
   printf("\n-------- Mark pins:\n");
   struct PinnedVariable **pv = &pinned_variables;
   printf("pinned_variables = %p\n", pinned_variables);
@@ -439,6 +445,7 @@ void gc() {
     ((struct Object *)(*pv)->variable)->mark = 99;
     pv = &(*pv)->next;
   }
+#endif
   /* while (*pv != NULL) { */
   /*   (*(*pv)->variable)->mark = current_mark; */
   /*   pv = &(*pv)->next; */
@@ -1043,7 +1050,7 @@ void print_cell(Object *car) {
       break;
     }
 
-    sleep(1);
+    //sleep(1);
     if (obj == obj->cell.cdr) {
       error("Circular reference??");
     }
