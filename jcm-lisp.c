@@ -28,8 +28,8 @@
 #define GC_MARK
 #define GC_SWEEP
 #define GC_DEBUG
-//#define GC_DEBUG_X
-//#define GC_TEST
+#define GC_DEBUG_X
+#define GC_TEST
 
 typedef enum {
   UNKNOWN = 0,
@@ -259,8 +259,8 @@ void mark(Object *obj) {
   {
 #ifdef GC_DEBUG
     printf("Mark:\n");
+    printf("\nNothing to mark: already marked\n");
     print(obj);
-    printf("\nNothing to mark: already marked");
 #endif
     return;
   }
@@ -1034,7 +1034,7 @@ void print_cell(Object *car) {
   printf("(");
   Object *obj = car;
 
-  while (obj != s_nil) {
+  while (obj != s_nil && obj != NULL) {
     if (obj->type == CELL) {
       print(obj->cell.car);
     } else {
@@ -1043,11 +1043,17 @@ void print_cell(Object *car) {
       break;
     }
 
+    sleep(1);
+    if (obj == obj->cell.cdr) {
+      error("Circular reference??");
+    }
+
     obj = obj->cell.cdr;
 
-    if (obj != s_nil)
+    if (obj != s_nil && obj != NULL)
       printf(" ");
   }
+
   printf(")\n");
 }
 
@@ -1287,21 +1293,25 @@ int main(int argc, char* argv[]) {
 
   printf("---->\n");
   printf("---->\n");
-  gc();
 
-  //current_mark = 1000;
-  gc();
+  for (int i = 0; i < 4; i++)
+  {
+    current_mark = 1000 + i;
+    gc();
 
-  //current_mark = 10000;
-  gc();
+    //current_mark = 1000;
+    //gc();
 
-  printf("\nPass 2\n");
-  resultGC = eval(foo_car1, env);
-  printf("---->\n");
-  print(resultGC);
-  printf("\n");
-  printf("\n");
+    //current_mark = 10000;
+    //gc();
 
+    printf("\nPass 2\n");
+    resultGC = eval(foo_car1, env);
+    printf("---->\n");
+    print(resultGC);
+    printf("\n");
+    printf("\n");
+  }
   /* resultGC = eval(define_car, env); */
   /* gc(); */
   /* printf("\nPass 3\n"); */
