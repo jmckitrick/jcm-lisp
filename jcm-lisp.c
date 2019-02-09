@@ -10,8 +10,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <unistd.h>
-#include <assert.h>
+/* #include <unistd.h> */
+/* #include <assert.h> */
+#include <sys/errno.h>
 
 #define MAX_BUFFER_SIZE 100
 
@@ -25,13 +26,15 @@
 //#define MAX_ALLOC_SIZE  1000
 //#define MAX_ALLOC_SIZE  10000
 
+//#define REPL
 #define GC_ENABLED
 #define GC_MARK
 #define GC_SWEEP
-#define GC_DEBUG
+//#define GC_DEBUG
 //#define GC_DEBUG_X
 //#define GC_TEST
 //#define GC_PIN
+#define FILE_TEST
 
 typedef enum {
   UNKNOWN = 0,
@@ -887,7 +890,11 @@ Object *read_lisp(FILE *in) {
   } else if (c == ')') {
     ungetc(c, in);
   } else if (c == EOF) {
+#ifdef REPL
     exit(0);
+#else
+    return NULL;
+#endif
   }
 
   return obj;
@@ -1023,7 +1030,7 @@ Object *eval_symbol(Object *obj, Object *env) {
     asprintf(&buff, "Undefined symbol '%s'", obj->symbol.name);
     error(buff);
   }
-  printf("Pair = %p\n", pair);
+  printf("Pair   = %p\n", pair);
   printf("Symbol = %p\n", cdr(pair));
 
   // Is this the right thing to return for a symbol eval??
@@ -1033,6 +1040,8 @@ Object *eval_symbol(Object *obj, Object *env) {
 Object *eval_list(Object *obj, Object *env) {
   if (obj == s_nil)
     return obj;
+
+  printf("Eval list\n");
 
   if (car(obj) == s_define) {
     // (define var val)
@@ -1065,35 +1074,37 @@ Object *eval_list(Object *obj, Object *env) {
     // symbol should be unevaluated?
     // Or do we evaluate it and setcdr?
     Object *pair = assoc(cell_symbol, env);
-    Object *pair_cdr = pair->cell.cdr;
-    Object *var_cdr = eval_symbol(cell_symbol, env);
+    Object **pair_cdr = &pair->cell.cdr;
+    //Object *var_cdr = eval_symbol(cell_symbol, env);
+    Object *var_res = eval_symbol(cell_symbol, env);
+    Object **var_cdr = &var_res;
     Object *newval = eval(cell_value, env);
-    print(pair);
+
+    printf("before pair     %p %p\n", &pair, pair);
+    printf("before pair_cdr %p %p %p\n", &pair_cdr, pair_cdr, *pair_cdr);
+    //printf("before var_cdr  %p %p\n", &var_cdr, var_cdr);
+    printf("before var_cdr  %p %p %p\n", &var_cdr, var_cdr, *var_cdr);
+    printf("before pair cdr %p %p\n", &pair->cell.cdr, pair->cell.cdr);
+    //printf("before pair cdr %p\n", &pair->cell.cdr);
+    //printf("before cdr of pair %p\n", cdr(pair));
     printf("\n");
-    print(car(pair));
-    printf("\n");
-    printf("car of pair       %p ", car(pair));
-    printf("cdr of pair       %p ", cdr(pair));
-    print(cdr(pair));
-    printf("\n");
-    printf("var_cdr ");
-    print(var_cdr);
-    printf("\n");
-    printf("pair              %p\n", pair);
-    printf("var_cdr           %p\n", var_cdr);
-    printf("newval            %p\n", newval);
-    printf("var_cdr           %p = newval %p\n", var_cdr, newval);
-    printf("----\n");
-    var_cdr = newval;
-    pair_cdr = newval;
-    pair->cell.cdr = newval;
-    printf("after var_cdr     %p\n", var_cdr);
-    printf("after pair        %p\n", pair);
-    printf("after cdr of pair %p\n", cdr(pair));
-    //setcdr(pair, newval);
-    printf("after var_cdr     %p\n", var_cdr);
-    printf("after pair        %p\n", pair);
-    printf("after cdr of pair %p\n", cdr(pair));
+
+    // BAD
+    //*var_cdr = newval;
+
+    // GOOD
+    //*var_res = *newval;
+    //*pair_cdr = newval;
+    //pair->cell.cdr = newval;
+    setcdr(pair, newval);
+
+    printf("after pair      %p %p\n", &pair, pair);
+    printf("after pair_cdr  %p %p %p\n", &pair_cdr, pair_cdr, *pair_cdr);
+    printf("after var_cdr   %p %p\n", &var_cdr, var_cdr);
+    //printf("after var_cdr   %p %p %p\n", &var_cdr, var_cdr, *var_cdr);
+    printf("after pair cdr  %p %p\n", &pair->cell.cdr, pair->cell.cdr);
+    //printf("after pair cdr  %p\n", &pair->cell.cdr);
+    //printf("after cdr of pair  %p\n", cdr(pair));
 
     return newval;
   } else if (car(obj) == s_if) {
@@ -1130,6 +1141,10 @@ Object *eval_list(Object *obj, Object *env) {
 }
 
 Object *eval(Object *obj, Object *env) {
+  if (obj == NULL) {
+    return obj;
+  }
+
   Object *result = s_nil;
 
   printf("Eval:\n");
@@ -1289,7 +1304,7 @@ void init() {
   }
 }
 
-void run_tests() {
+void run_gc_tests() {
   printf("\nv----------------------------------------v\n");
   printf("\nRunning GC tests.\n");
   current_mark = 10;
@@ -1437,6 +1452,32 @@ void run_tests() {
   /* resultGC = eval(define_car, env); */
 }
 
+void run_file_tests() {
+  printf("\n\nBEGIN FILE TESTS\n");
+
+  FILE *fp = fopen("./test.lsp", "r");
+
+  if (fp == NULL) {
+    printf("File open failed: %d", errno);
+    return;
+  }
+
+  Object *result = s_nil;
+
+  while (result != NULL) {
+    printf("\n----\nREAD\n");
+    result = read_lisp(fp);
+    print(result);
+    printf("\n----\nEVALUATE\n");
+    result = eval(result, env);
+    print(result);
+    printf("\n");
+  }
+
+  fclose(fp);
+  printf("END FILE TESTS\n");
+}
+
 int main(int argc, char* argv[]) {
   init();
 
@@ -1476,8 +1517,14 @@ int main(int argc, char* argv[]) {
   extend_env(env, intern_symbol("/"), make_primitive(primitive_div));
 
 #ifdef GC_TEST
-  run_tests();
-#else
+  run_gc_tests();
+#endif
+
+#ifdef FILE_TEST
+  run_file_tests();
+#endif
+
+#ifdef REPL
   printf("\nWelcome to JCM-LISP. Use ctrl-c to exit.\n");
 
   while (1) {
