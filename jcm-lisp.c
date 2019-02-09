@@ -20,16 +20,17 @@
 //#define MAX_ALLOC_SIZE  48
 //#define MAX_ALLOC_SIZE  56
 //#define MAX_ALLOC_SIZE  64
-//#define MAX_ALLOC_SIZE  128
-#define MAX_ALLOC_SIZE  1000
+#define MAX_ALLOC_SIZE  128
+//#define MAX_ALLOC_SIZE  256
+//#define MAX_ALLOC_SIZE  1000
 //#define MAX_ALLOC_SIZE  10000
 
 #define GC_ENABLED
 #define GC_MARK
 #define GC_SWEEP
 #define GC_DEBUG
-#define GC_DEBUG_X
-#define GC_TEST
+//#define GC_DEBUG_X
+//#define GC_TEST
 //#define GC_PIN
 
 typedef enum {
@@ -86,6 +87,7 @@ struct Object {
   };
 
   int mark;
+  int id;
   struct Object *next;
 };
 
@@ -109,6 +111,11 @@ Object *env;
 
 int current_mark;
 
+void error(char *msg) {
+  printf("\nError %s\n", msg);
+  exit(0);
+}
+
 #ifdef GC_PIN
 struct PinnedVariable {
   Object **variable;
@@ -116,9 +123,7 @@ struct PinnedVariable {
 };
 
 struct PinnedVariable *pinned_variables;
-#endif
 
-#ifdef GC_PIN
 void pin_variable(Object **obj) {
 
 #ifdef GC_DEBUG_X
@@ -146,7 +151,7 @@ void pin_variable(Object **obj) {
 }
 #else
 void pin_variable(Object **obj) { }
-#endif
+#endif // GC_PIN
 
 #ifdef GC_PIN
 void unpin_variable(Object **variable) {
@@ -175,7 +180,7 @@ void unpin_variable(Object **variable) {
 }
 #else
 void unpin_variable(Object **variable) { }
-#endif
+#endif // GC_PIN
 
 char *get_type(Object *obj) {
   if (obj == NULL)
@@ -242,9 +247,14 @@ void setcar(Object *obj, Object *val) {
 }
 
 void setcdr(Object *obj, Object *val) {
-  if (obj->cell.cdr != NULL && obj->cell.cdr != s_nil) {
-    printf("Changing %p to %p\n", obj->cell.cdr, val);
+  if (obj == NULL) {
+    error("Cannot set NULL cdr");
   }
+
+  if (obj->cell.cdr != NULL && obj->cell.cdr != s_nil) {
+    printf("Changing %p -> cdr %p to %p\n", obj, obj->cell.cdr, val);
+  }
+
   obj->cell.cdr = val;
 }
 
@@ -265,7 +275,7 @@ void mark(Object *obj) {
 #ifdef GC_DEBUG
     printf("Mark:\n");
     printf("\nNothing to mark: already marked\n");
-    print(obj);
+    //print(obj);
 #endif
     return;
   }
@@ -288,6 +298,11 @@ void mark(Object *obj) {
 
 #ifdef GC_DEBUG
   //printf("\nAfter mark: %p %d", obj, obj->mark);
+  if (obj->id >= 55 && obj->id <= 57) {
+    printf("TARGET! v\n");
+    print(obj);
+    printf("TARGET! ^\n");
+  }
 #endif
 
   switch (obj->type) {
@@ -343,9 +358,22 @@ void mark(Object *obj) {
   }
 }
 
+int is_active(Object *needle) {
+  Object *obj = active_list;
+
+  while (obj != NULL) {
+    if (obj == needle)
+      return 1;
+    obj = obj->next;
+  }
+
+  return 0;
+}
+
 void sweep() {
   Object *obj = active_list;
   int counted = 0, kept = 0, swept = 0;
+  int cells = 0;
 
   printf("Active list            = %p\n", active_list);
   printf("Free list              = %p\n", free_list);
@@ -353,11 +381,11 @@ void sweep() {
   while (obj != NULL) {
     Object *next = obj->next;
 #ifdef GC_DEBUG
-    printf("\nObj at                 = %p\n", obj);
+    //printf("\nObj at                 = %p\n", obj);
 #endif
 
     if (obj->mark == 0) {
-      printf("obj->mark: %d\n", obj->mark);
+      //printf("obj->mark: %d\n", obj->mark);
       printf("SWEEP: %p ", obj);
       print(obj);
 
@@ -374,6 +402,7 @@ void sweep() {
           printf("\n");
           break;
         case CELL:
+          cells++;
           break;
         default:
           printf("\n");
@@ -387,15 +416,10 @@ void sweep() {
       printf("Free list now          = %p\n", free_list);
       swept++;
     } else {
-      obj->mark = 0;
 #ifdef GC_DEBUG
-      printf("Mark it ZERO! %d ", obj->mark);
-      printf("Do NOT sweep: ");
+      /* printf("Mark it ZERO! %d ", obj->mark); */
+      printf("Do NOT sweep: %p %d ", obj, obj->id);
       print(obj);
-#endif
-
-#ifdef GC_DEBUG
-      // Pretty-print
       switch (obj->type) {
         case STRING:
           break;
@@ -408,7 +432,12 @@ void sweep() {
         default:
           break;
       }
+      if (!is_active(obj)) {
+        error("NOT found in active list!\n");
+        //error("")
+      }
 #endif
+      obj->mark = 0;
       kept++;
     }
     obj = next;
@@ -416,12 +445,65 @@ void sweep() {
   }
 #ifdef GC_DEBUG
   printf("\nDone sweep: %d kept %d swept %d counted\n", kept, swept, counted);
+  printf("%d cells\n", cells);
 #endif
+}
+
+int check_active() {
+  Object *obj = active_list;
+  int counted = 0;
+
+  //printf("Active list            = %p\n", active_list);
+
+  while (obj != NULL) {
+    printf("Active %p %d\n", obj, obj->id);
+    //printf("Active %p\n", obj);
+    //print(obj);
+    //printf("\n");
+    counted++;
+    obj = obj->next;
+  }
+#ifdef GC_DEBUG
+  printf("\nDone check_active: %d counted\n", counted);
+#endif
+  return counted;
+}
+
+int check_free() {
+  Object *obj = free_list;
+  int counted = 0;
+
+  //printf("Free list              = %p\n", free_list);
+
+  while (obj != NULL) {
+    printf("Free %p %d\n", obj, obj->id);
+    //printf("Active %p\n", obj);
+    //print(obj);
+    //printf("\n");
+    counted++;
+    obj = obj->next;
+  }
+#ifdef GC_DEBUG
+  printf("\nDone check_free: %d counted\n", counted);
+#endif
+  return counted;
+}
+
+void check_mem() {
+  int active = check_active();
+  int free = check_free();
+  int total = active + free;
+  printf("\nDone check_mem: %d total\n", total);
+  if (total != MAX_ALLOC_SIZE) {
+    printf("Missing %d objects", MAX_ALLOC_SIZE - total);
+    error("check_mem fail!");
+  }
 }
 
 void gc() {
 
   printf("\nGC v----------------------------------------v\n");
+  check_mem();
 
 #ifdef GC_MARK
   /* current_mark++; */
@@ -455,6 +537,7 @@ void gc() {
 #ifdef GC_SWEEP
   printf("\n-------- Sweep\n");
   sweep();
+  check_mem();
 #endif
 
   printf("\nGC ^----------------------------------------^\n");
@@ -627,15 +710,16 @@ Object *intern_symbol(char *name) {
   Object *sym = lookup_symbol(name);
 
   if (sym == NULL) {
-    //printf("Make symbol %s\n", name);
+    printf("Make symbol %s\n", name);
     sym = make_symbol(name);
-    //printf("Made symbol %p\n", sym);
+    printf("Made symbol %p\n", sym);
     symbols = cons(sym, symbols);
   }
 
   return sym;
 }
 
+// BUG: Does not walk list of environments!
 Object *assoc(Object *key, Object *list) {
   if (list != s_nil) {
     Object *pair = car(list);
@@ -770,34 +854,7 @@ Object *read_number(FILE *in) {
   return make_fixnum(number);
 }
 
-Object *read_lisp(FILE *);
-
-Object *read_list(FILE *in) {
-  char c;
-  Object *car, *cdr;
-
-  car = cdr = make_cell();
-  car->cell.car = read_lisp(in);
-
-  while ((c = getc(in)) != ')') {
-    if (c == '.') {
-      // Discard the char after '.'
-      // but we should check for whitespace.
-      getc(in);
-
-      // The rest goes into the cdr.
-      cdr->cell.cdr = read_lisp(in);
-    } else if (!is_whitespace(c)) {
-      ungetc(c, in);
-
-      cdr->cell.cdr = make_cell();
-      cdr = cdr->cell.cdr;
-      cdr->cell.car = read_lisp(in);
-    }
-  };
-
-  return car;
-}
+Object *read_list(FILE *);
 
 // XXX Review these:
 // strchr
@@ -836,29 +893,31 @@ Object *read_lisp(FILE *in) {
   return obj;
 }
 
-void error(char *msg) {
-  printf("\nError %s\n", msg);
-  exit(0);
-}
+Object *read_list(FILE *in) {
+  char c;
+  Object *car, *cdr;
 
-Object *eval_symbol(Object *obj, Object *env) {
-  //printf("s_nil %p\n", s_nil);
-  //printf("Symbol? %p\n", obj);
-  //printf("Symbol name? '%s'\n", obj->symbol.name);
-  if (obj == s_nil) {
-    //printf("\ns_nil??\n");
-    return obj;
-  }
+  car = cdr = make_cell();
+  car->cell.car = read_lisp(in);
 
-  Object *tmp = assoc(obj, env);
+  while ((c = getc(in)) != ')') {
+    if (c == '.') {
+      // Discard the char after '.'
+      // but we should check for whitespace.
+      getc(in);
 
-  if (tmp == NULL) {
-    char *buff = NULL;
-    asprintf(&buff, "Undefined symbol '%s'", obj->symbol.name);
-    error(buff);
-  }
+      // The rest goes into the cdr.
+      cdr->cell.cdr = read_lisp(in);
+    } else if (!is_whitespace(c)) {
+      ungetc(c, in);
 
-  return cdr(tmp);
+      cdr->cell.cdr = make_cell();
+      cdr = cdr->cell.cdr;
+      cdr->cell.car = read_lisp(in);
+    }
+  };
+
+  return car;
 }
 
 /*
@@ -867,7 +926,15 @@ Object *eval_symbol(Object *obj, Object *env) {
  * and the existing env in the tail.
  */
 Object *extend(Object *env, Object *var, Object *val) {
-  return cons(cons(var, val), env);
+  printf("Extend list %p with var ", env);
+  print(var);
+  printf(" = ");
+  print(val);
+  printf("\n");
+
+  Object *pair = cons(var, val);
+
+  return cons(pair, env);
 }
 
 /*
@@ -875,7 +942,19 @@ Object *extend(Object *env, Object *var, Object *val) {
  * with var and val at the head.
  */
 Object *extend_env(Object* env, Object *var, Object *val) {
-  setcdr(env, extend(cdr(env), var, val));
+  Object *current_env = cdr(env);
+  printf("Current env = ");
+  print(env);
+  printf("Extend env %p with var ", env);
+  print(var);
+  printf(" = ");
+  print(val);
+  printf("\n");
+
+  Object *updated_env = extend(current_env, var, val);
+
+  setcdr(env, updated_env);
+
   return val;
 }
 
@@ -928,11 +1007,35 @@ Object *apply(Object *proc, Object *args, Object *env) {
   return s_nil;
 }
 
+Object *eval_symbol(Object *obj, Object *env) {
+  if (obj == s_nil) {
+    printf("\ns_nil??\n");
+    return obj;
+  }
+
+  printf("Symbol %p\n", obj);
+  printf("Symbol name '%s'\n", obj->symbol.name);
+
+  Object *pair = assoc(obj, env);
+
+  if (pair == NULL) {
+    char *buff = NULL;
+    asprintf(&buff, "Undefined symbol '%s'", obj->symbol.name);
+    error(buff);
+  }
+  printf("Pair = %p\n", pair);
+  printf("Symbol = %p\n", cdr(pair));
+
+  // Is this the right thing to return for a symbol eval??
+  return cdr(pair);
+}
+
 Object *eval_list(Object *obj, Object *env) {
   if (obj == s_nil)
     return obj;
 
   if (car(obj) == s_define) {
+    // (define var val)
     Object *cell = obj;
     //Object *cell_define = car(cell); // should be symbol named define
 
@@ -945,6 +1048,7 @@ Object *eval_list(Object *obj, Object *env) {
     Object *var = cell_symbol;
     Object *val = eval(cell_value, env);
 
+    // BUG!? multiple defines = multiple envs!!!
     return extend_env(env, var, val);
   } else if (car(obj) == s_setq) {
     Object *cell = obj;
@@ -956,9 +1060,40 @@ Object *eval_list(Object *obj, Object *env) {
     cell = cdr(cell);
     Object *cell_value = car(cell);
 
+    // Should we use assoc here?
+    // Or maybe just eval_symbol?
+    // symbol should be unevaluated?
+    // Or do we evaluate it and setcdr?
     Object *pair = assoc(cell_symbol, env);
+    Object *pair_cdr = pair->cell.cdr;
+    Object *var_cdr = eval_symbol(cell_symbol, env);
     Object *newval = eval(cell_value, env);
-    setcdr(pair, newval);
+    print(pair);
+    printf("\n");
+    print(car(pair));
+    printf("\n");
+    printf("car of pair       %p ", car(pair));
+    printf("cdr of pair       %p ", cdr(pair));
+    print(cdr(pair));
+    printf("\n");
+    printf("var_cdr ");
+    print(var_cdr);
+    printf("\n");
+    printf("pair              %p\n", pair);
+    printf("var_cdr           %p\n", var_cdr);
+    printf("newval            %p\n", newval);
+    printf("var_cdr           %p = newval %p\n", var_cdr, newval);
+    printf("----\n");
+    var_cdr = newval;
+    pair_cdr = newval;
+    pair->cell.cdr = newval;
+    printf("after var_cdr     %p\n", var_cdr);
+    printf("after pair        %p\n", pair);
+    printf("after cdr of pair %p\n", cdr(pair));
+    //setcdr(pair, newval);
+    printf("after var_cdr     %p\n", var_cdr);
+    printf("after pair        %p\n", pair);
+    printf("after cdr of pair %p\n", cdr(pair));
 
     return newval;
   } else if (car(obj) == s_if) {
@@ -996,6 +1131,8 @@ Object *eval_list(Object *obj, Object *env) {
 
 Object *eval(Object *obj, Object *env) {
   Object *result = s_nil;
+
+  printf("Eval:\n");
 
   switch (obj->type) {
     case STRING:
@@ -1038,8 +1175,9 @@ void print_fixnum(Object *obj) {
 }
 
 void print_cell(Object *car) {
-  printf("(");
   Object *obj = car;
+
+  printf("(");
 
   while (obj != s_nil && obj != NULL) {
     if (obj->type == CELL) {
@@ -1066,7 +1204,7 @@ void print_cell(Object *car) {
 
 void print(Object *obj) {
   if (obj == NULL) {
-    printf("NULL ERROR");
+    printf("NULL ERROR\n");
     return;
   }
 
@@ -1144,10 +1282,159 @@ void init() {
 
   for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
     Object *obj = calloc(1, sizeof(struct Object));
+    obj->id = i;
     obj->type = UNKNOWN;
     obj->next = free_list;
     free_list = obj;
   }
+}
+
+void run_tests() {
+  printf("\nv----------------------------------------v\n");
+  printf("\nRunning GC tests.\n");
+  current_mark = 10;
+
+  //check_mem();
+
+  // Build a lambda:
+  // (define foo (lambda (a) a))
+  // intern foo
+  // cons symbol define, symbol foo, cons symbol lambda, cons symbol a, a
+  Object *define = s_define; //intern_symbol("define");
+  Object *foo = intern_symbol("foo");
+  Object *lambda = s_lambda; //intern_symbol("lambda");
+  Object *a = intern_symbol("a");
+
+  printf("\n a @ %p\n", a);
+  print(a);
+  printf("\n");
+
+  // (a)
+  /* Object *args_car = make_cell(); */
+  /* args_car->cell.car = a; */
+  Object *args_car = cons(a, s_nil);
+  print(args_car);
+  printf("\n");
+
+  // ((a) a)
+  /* Object *lambda_car2 = make_cell(); */
+  /* Object *lambda_cdr2 = lambda_car2; */
+  /* lambda_car2->cell.car = args_car; */
+  /* lambda_cdr2->cell.cdr = make_cell(); */
+  /* lambda_cdr2->cell.cdr->cell.car = a; */
+  //Object *args_car = cons(a, s_nil);
+
+  // (lambda (a) a)
+  /* Object *lambda_car1 = make_cell(); */
+  /* Object *lambda_cdr1 = lambda_car1; */
+  /* lambda_car1->cell.car = lambda; */
+  /* /\* lambda_cdr1->cell.cdr = make_cell(); *\/ */
+  /* /\* lambda_cdr1->cell.cdr->cell.car = lambda_car2; *\/ */
+  /* lambda_car1->cell.cdr = make_cell(); */
+  /* lambda_cdr1 = lambda_car1->cell.cdr; */
+  /* lambda_cdr1->cell.car = args_car; */
+  /* lambda_cdr1->cell.cdr = make_cell(); */
+  /* lambda_cdr1 = lambda_cdr1->cell.cdr; */
+  /* lambda_cdr1->cell.car = a; */
+  Object *lambda_car1 = cons(lambda, cons(args_car, cons(a, s_nil)));
+  print(lambda_car1);
+  printf("\n");
+
+  // (foo ...)
+  /* Object *lambda_car3 = make_cell(); */
+  /* Object *lambda_cdr3 = lambda_car3; */
+  /* lambda_car3->cell.car = foo; */
+  /* lambda_cdr3->cell.cdr = make_cell(); */
+  /* lambda_cdr3->cell.cdr->cell.car = lambda_car1; */
+
+  // (define foo (lambda (a) a))
+  /* Object *define_car = make_cell(); */
+  /* Object *define_cdr = define_car; */
+  /* define_car->cell.car = define; */
+  /* //define_cdr->cell.cdr = make_cell(); */
+  /* //define_cdr->cell.cdr->cell.car = lambda_car3; */
+  /* define_car->cell.cdr = make_cell(); */
+  /* define_cdr = define_car->cell.cdr; */
+  /* define_cdr->cell.car = foo; */
+  /* define_cdr->cell.cdr = make_cell(); */
+  /* define_cdr = define_cdr->cell.cdr; */
+  /* define_cdr->cell.car = lambda_car1; */
+  Object *define_car = cons(define, cons(foo, cons(lambda_car1, s_nil)));
+  print(define_car);
+
+  //Object *int_1 = make_fixnum(1);
+  Object *foo_car1 = cons(foo, cons(make_fixnum(1), s_nil));
+  print(foo_car1);
+  printf("\n");
+
+  Object *resultGC = NULL;
+
+  printf("\nPass 1\n");
+  for (int i = 0; i < 1; i++) {
+    printf("\nPass 1 - %d\n", i);
+    resultGC = eval(define_car, env);
+    //printf("\n a @ %p\n", a);
+    //print(a);
+    //print(eval(a, env));
+    //printf("---->\n");
+    print(resultGC);
+  }
+  //return;
+
+  // (foo 1)
+  /* Object *foo_car1 = make_cell(); */
+  /* foo_car1->cell.car = foo; */
+  /* foo_car1->cell.cdr = make_cell(); */
+  /* foo_car1->cell.cdr->cell.car = int_1; */
+
+  printf("\n a @ %p\n", a);
+
+  //print(lambda_car2);
+
+  /* print(lambda_car3); */
+
+  printf("---->\n");
+  printf("---->\n");
+
+  for (int i = 0; i < 20; i++)
+  {
+    //current_mark = 1000 + i;
+    //gc();
+
+    //current_mark = 1000;
+    //gc();
+
+    //current_mark = 10000;
+    //gc();
+
+    printf("\nPass 2 %d\n", i);
+    /* resultGC = eval(define_car, env); */
+    /* //resultGC = eval(foo_car1, env); */
+    /* printf("---->\n"); */
+    /* print(resultGC); */
+    /* printf("\n"); */
+    /* printf("\n"); */
+
+    //current_mark = 100;
+    printf("\n a @ %p\n", a);
+    print(a);
+    //print(eval(a, env));
+    printf("\n");
+    printf("\n");
+    resultGC = eval(foo_car1, env);
+    printf("\n a @ %p\n", a);
+    print(a);
+    //print(eval(a, env));
+    printf("---->\n");
+    print(resultGC);
+    printf("\n");
+    printf("\n");
+
+  }
+  /* resultGC = eval(define_car, env); */
+  /* gc(); */
+  /* printf("\nPass 3\n"); */
+  /* resultGC = eval(define_car, env); */
 }
 
 int main(int argc, char* argv[]) {
@@ -1188,141 +1475,8 @@ int main(int argc, char* argv[]) {
   extend_env(env, intern_symbol("*"), make_primitive(primitive_mul));
   extend_env(env, intern_symbol("/"), make_primitive(primitive_div));
 
-#ifdef GC_ENABLED
-  //gc();
-#endif
-
 #ifdef GC_TEST
-  printf("\nv----------------------------------------v\n");
-  printf("\nRunning GC tests.\n");
-  current_mark = 10;
-  // Build a lambda:
-  // (define foo (lambda (a) a))
-  // intern foo
-  // cons symbol define, symbol foo, cons symbol lambda, cons symbol a, a
-  Object *define = s_define; //intern_symbol("define");
-  Object *foo = intern_symbol("foo");
-  Object *lambda = s_lambda; //intern_symbol("lambda");
-  Object *a = intern_symbol("a");
-
-  printf("\n a @ %p\n", a);
-  print(a);
-
-  // (a)
-  Object *args_car = make_cell();
-  args_car->cell.car = a;
-
-  // ((a) a)
-  Object *lambda_car2 = make_cell();
-  Object *lambda_cdr2 = lambda_car2;
-  lambda_car2->cell.car = args_car;
-  lambda_cdr2->cell.cdr = make_cell();
-  lambda_cdr2->cell.cdr->cell.car = a;
-
-  // (lambda ....)
-  Object *lambda_car1 = make_cell();
-  Object *lambda_cdr1 = lambda_car1;
-  lambda_car1->cell.car = lambda;
-  /* lambda_cdr1->cell.cdr = make_cell(); */
-  /* lambda_cdr1->cell.cdr->cell.car = lambda_car2; */
-  lambda_car1->cell.cdr = make_cell();
-  lambda_cdr1 = lambda_car1->cell.cdr;
-  lambda_cdr1->cell.car = args_car;
-  lambda_cdr1->cell.cdr = make_cell();
-  lambda_cdr1 = lambda_cdr1->cell.cdr;
-  lambda_cdr1->cell.car = a;
-
-  // (foo ...)
-  /* Object *lambda_car3 = make_cell(); */
-  /* Object *lambda_cdr3 = lambda_car3; */
-  /* lambda_car3->cell.car = foo; */
-  /* lambda_cdr3->cell.cdr = make_cell(); */
-  /* lambda_cdr3->cell.cdr->cell.car = lambda_car1; */
-
-  // (define ...)
-  Object *define_car = make_cell();
-  Object *define_cdr = define_car;
-  define_car->cell.car = define;
-  //define_cdr->cell.cdr = make_cell();
-  //define_cdr->cell.cdr->cell.car = lambda_car3;
-  define_car->cell.cdr = make_cell();
-  define_cdr = define_car->cell.cdr;
-  define_cdr->cell.car = foo;
-  define_cdr->cell.cdr = make_cell();
-  define_cdr = define_cdr->cell.cdr;
-  define_cdr->cell.car = lambda_car1;
-
-  Object *int_1 = make_fixnum(1);
-
-  // (foo 1)
-  Object *foo_car1 = make_cell();
-  foo_car1->cell.car = foo;
-  foo_car1->cell.cdr = make_cell();
-  foo_car1->cell.cdr->cell.car = int_1;
-
-  printf("\n a @ %p\n", a);
-
-  print(a);
-  printf("\n");
-  print(args_car);
-  print(lambda_car2);
-  print(lambda_car1);
-
-  /* print(lambda_car3); */
-
-  print(define_car);
-  print(foo_car1);
-
-  //current_mark = 100;
-  Object *resultGC = NULL;
-  /* printf("\nPass 0\n"); */
-  /* gc(); */
-  printf("\nPass 1\n");
-  resultGC = eval(define_car, env);
-  printf("\n a @ %p\n", a);
-  print(a);
-  //print(eval(a, env));
-  printf("---->\n");
-  print(resultGC);
-  printf("\n a @ %p\n", a);
-  print(a);
-  //print(eval(a, env));
-  printf("\n");
-  printf("\n");
-  resultGC = eval(foo_car1, env);
-  printf("\n a @ %p\n", a);
-  print(a);
-  //print(eval(a, env));
-  printf("---->\n");
-  print(resultGC);
-  printf("\n");
-  printf("\n");
-
-  printf("---->\n");
-  printf("---->\n");
-
-  for (int i = 0; i < 4; i++)
-  {
-    current_mark = 1000 + i;
-    gc();
-
-    //current_mark = 1000;
-    //gc();
-
-    //current_mark = 10000;
-    //gc();
-
-    printf("\nPass 2\n");
-    resultGC = eval(foo_car1, env);
-    printf("---->\n");
-    print(resultGC);
-    printf("\n");
-    printf("\n");
-  }
-  /* resultGC = eval(define_car, env); */
-  /* gc(); */
-  /* printf("\nPass 3\n"); */
-  /* resultGC = eval(define_car, env); */
+  run_tests();
 #else
   printf("\nWelcome to JCM-LISP. Use ctrl-c to exit.\n");
 
@@ -1339,3 +1493,9 @@ int main(int argc, char* argv[]) {
 
   return 0;
 }
+
+/*
+Free: 1-54,58-65
+Active: 66-127
+???: 55-57
+ */
