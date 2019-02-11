@@ -1090,13 +1090,14 @@ Object *eval_list(Object *obj, Object *env) {
     printf("\n");
 
     // BAD
-    //*var_cdr = newval;
+    *var_cdr = newval;
 
     // GOOD
+    **var_cdr = *newval;
     //*var_res = *newval;
     //*pair_cdr = newval;
     //pair->cell.cdr = newval;
-    setcdr(pair, newval);
+    //setcdr(pair, newval);
 
     printf("after pair      %p %p\n", &pair, pair);
     printf("after pair_cdr  %p %p %p\n", &pair_cdr, pair_cdr, *pair_cdr);
