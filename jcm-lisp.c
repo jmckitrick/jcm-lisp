@@ -10,8 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-/* #include <unistd.h> */
-/* #include <assert.h> */
 #include <sys/errno.h>
 
 #define MAX_BUFFER_SIZE 100
@@ -26,7 +24,6 @@
 //#define MAX_ALLOC_SIZE  1000
 //#define MAX_ALLOC_SIZE  10000
 
-//#define REPL
 #define GC_ENABLED
 #define GC_MARK
 #define GC_SWEEP
@@ -35,6 +32,7 @@
 //#define GC_TEST
 //#define GC_PIN
 #define FILE_TEST
+//#define REPL
 
 typedef enum {
   UNKNOWN = 0,
@@ -165,14 +163,16 @@ void unpin_variable(Object **variable) {
 
   struct PinnedVariable **v;
   for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
-    if ((*v)->variable == variable) {
+    struct PinnedVariable *target = *v;
+
+    if (target->variable == variable) {
 
 #ifdef GC_DEBUG_X
       printf("Pinned variable found %p\n", *v);
 #endif
-      struct PinnedVariable *next = (*v)->next;
-      free(*v);
-      *v = next;
+      struct PinnedVariable *next = target->next;
+      free(target);
+      target = next;
 #ifdef GC_DEBUG_X
       printf("Pinned variable  head %p\n", *v);
 #endif
@@ -250,21 +250,18 @@ void setcar(Object *obj, Object *val) {
 }
 
 void setcdr(Object *obj, Object *val) {
-  if (obj == NULL) {
+  if (obj == NULL)
     error("Cannot set NULL cdr");
-  }
 
-  if (obj->cell.cdr != NULL && obj->cell.cdr != s_nil) {
+  if (obj->cell.cdr != NULL && obj->cell.cdr != s_nil)
     printf("Changing %p -> cdr %p to %p\n", obj, obj->cell.cdr, val);
-  }
 
   obj->cell.cdr = val;
 }
 
 #ifdef GC_ENABLED
 void mark(Object *obj) {
-  if (obj == NULL)
-  {
+  if (obj == NULL) {
 #ifdef GC_DEBUG
     printf("\nNothing to mark: NULL");
 #endif
@@ -273,8 +270,7 @@ void mark(Object *obj) {
 #ifdef GC_DEBUG
   Object *temp = obj; printf("\nMarking %p\n", temp);
 #endif
-  if (obj->mark > 0)
-  {
+  if (obj->mark > 0) {
 #ifdef GC_DEBUG
     printf("Mark:\n");
     printf("\nNothing to mark: already marked\n");
@@ -549,11 +545,11 @@ void gc() {
 Object *alloc_Object() {
   if (free_list == NULL) {
     gc();
-  }
 
-  if (free_list == NULL) {
-    printf("Out of memory\n");
-    exit(-1);
+    if (free_list == NULL) {
+      printf("Out of memory\n");
+      exit(-1);
+    }
   }
 
   Object *obj = free_list;
@@ -782,11 +778,10 @@ Object *primitive_div(Object *args) {
 }
 
 int is_whitespace(char c) {
-  if (isspace(c)) {
+  if (isspace(c))
     return 1;
-  } else {
+  else
     return 0;
-  }
 }
 
 int is_symbol_char(char c) {
@@ -922,7 +917,7 @@ Object *read_list(FILE *in) {
       cdr = cdr->cell.cdr;
       cdr->cell.car = read_lisp(in);
     }
-  };
+  }
 
   return car;
 }
@@ -1090,7 +1085,7 @@ Object *eval_list(Object *obj, Object *env) {
     printf("\n");
 
     // BAD
-    *var_cdr = newval;
+    //*var_cdr = newval;
 
     // GOOD
     **var_cdr = *newval;
@@ -1138,13 +1133,13 @@ Object *eval_list(Object *obj, Object *env) {
   /* This list is not a builtin, so treat it as a function call. */
   Object *proc = eval(car(obj), env);
   Object *args = eval_args(cdr(obj), env);
+
   return apply(proc, args, env);
 }
 
 Object *eval(Object *obj, Object *env) {
-  if (obj == NULL) {
+  if (obj == NULL)
     return obj;
-  }
 
   Object *result = s_nil;
 
@@ -1205,9 +1200,8 @@ void print_cell(Object *car) {
     }
 
     //sleep(1);
-    if (obj == obj->cell.cdr) {
+    if (obj == obj->cell.cdr)
       error("Circular reference??");
-    }
 
     obj = obj->cell.cdr;
 
@@ -1281,11 +1275,10 @@ Object *primitive_eq_num(Object *a, Object *b) {
 
 Object *primitive_eq(Object *args) {
   if (is_fixnum(car(args)) &&
-      is_fixnum(cadr(args))) {
+      is_fixnum(cadr(args)))
     return primitive_eq_num(car(args), cadr(args));
-  } else {
+  else
     return s_nil;
-  }
 }
 
 void init() {
@@ -1412,8 +1405,7 @@ void run_gc_tests() {
   printf("---->\n");
   printf("---->\n");
 
-  for (int i = 0; i < 20; i++)
-  {
+  for (int i = 0; i < 20; i++) {
     //current_mark = 1000 + i;
     //gc();
 
@@ -1453,10 +1445,10 @@ void run_gc_tests() {
   /* resultGC = eval(define_car, env); */
 }
 
-void run_file_tests() {
+void run_file_tests(char *fname) {
   printf("\n\nBEGIN FILE TESTS\n");
 
-  FILE *fp = fopen("./test.lsp", "r");
+  FILE *fp = fopen(fname, "r");
 
   if (fp == NULL) {
     printf("File open failed: %d", errno);
@@ -1522,7 +1514,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef FILE_TEST
-  run_file_tests();
+  run_file_tests("./test.lsp");
 #endif
 
 #ifdef REPL
