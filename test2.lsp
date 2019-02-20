@@ -1,0 +1,5 @@
+(define foo (lambda (a) a))
+(define foo (lambda (a) a))
+(define foo (lambda (a) a))
+(define foo (lambda (a) a))
+(foo 1)

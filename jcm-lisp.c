@@ -27,10 +27,11 @@
 #define GC_ENABLED
 #define GC_MARK
 #define GC_SWEEP
-//#define GC_DEBUG
+#define GC_DEBUG
 //#define GC_DEBUG_X
-//#define GC_TEST
 //#define GC_PIN
+
+//#define CODE_TEST
 #define FILE_TEST
 //#define REPL
 
@@ -102,12 +103,12 @@ Object *s_nil;
 Object *s_if;
 Object *s_t;
 
-//Object *prim_add, *prim_sub, *prim_mul, *prim_div;
-
 Object *s_lambda;
 
 Object *free_list;
 Object *active_list;
+Object *free_list_arr[MAX_ALLOC_SIZE];
+Object *active_list_arr[MAX_ALLOC_SIZE];
 Object *env;
 
 int current_mark;
@@ -297,10 +298,10 @@ void mark(Object *obj) {
 
 #ifdef GC_DEBUG
   //printf("\nAfter mark: %p %d", obj, obj->mark);
-  if (obj->id >= 55 && obj->id <= 57) {
-    printf("TARGET! v\n");
-    print(obj);
-    printf("TARGET! ^\n");
+  if (obj->id >= 4 && obj->id <= 5) {
+    //printf("TARGET! v\n");
+    //print(obj);
+    //printf("TARGET! ^\n");
   }
 #endif
 
@@ -310,7 +311,7 @@ void mark(Object *obj) {
     case SYMBOL:
     case PRIMITIVE:
 #ifdef GC_DEBUG
-      printf("\nMark %s ", get_type(obj));
+      printf("\nMark %d %s ", obj->id, get_type(obj));
       print(obj);
 #endif
       break;
@@ -358,18 +359,15 @@ void mark(Object *obj) {
 }
 
 int is_active(Object *needle) {
-  Object *obj = active_list;
-
-  while (obj != NULL) {
-    if (obj == needle)
+  for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
+    if (active_list_arr[i] == needle)
       return 1;
-    obj = obj->next;
   }
 
   return 0;
 }
 
-void sweep() {
+void sweep2() {
   Object *obj = active_list;
   int counted = 0, kept = 0, swept = 0;
   int cells = 0;
@@ -385,7 +383,7 @@ void sweep() {
 
     if (obj->mark == 0) {
       //printf("obj->mark: %d\n", obj->mark);
-      printf("SWEEP: %p ", obj);
+      printf("SWEEP: %p %d ", obj, obj->id);
       print(obj);
 
       // Free any additional allocated memory.
@@ -433,17 +431,99 @@ void sweep() {
       }
       if (!is_active(obj)) {
         error("NOT found in active list!\n");
-        //error("")
       }
 #endif
       obj->mark = 0;
       kept++;
     }
+    printf("Active list now        = %p\n", active_list);
+    printf("Free list now          = %p\n", free_list);
+
     obj = next;
     counted++;
   }
 #ifdef GC_DEBUG
-  printf("\nDone sweep: %d kept %d swept %d counted\n", kept, swept, counted);
+  printf("Done sweep: %d kept %d swept %d counted\n\n", kept, swept, counted);
+  printf("%d cells\n", cells);
+#endif
+}
+
+void sweep() {
+  int counted = 0, kept = 0, swept = 0;
+  int cells = 0;
+
+  for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
+    Object *obj = active_list_arr[i];
+
+    if (obj == NULL)
+      continue;
+
+#ifdef GC_DEBUG
+    //printf("\nObj at                 = %p\n", obj);
+#endif
+
+    if (obj->mark == 0) {
+      //printf("obj->mark: %d\n", obj->mark);
+      printf("SWEEP: %p %d ", obj, obj->id);
+      print(obj);
+
+      // Free any additional allocated memory.
+      switch (obj->type) {
+        case STRING:
+          memset(obj->str.text, 0, strlen(obj->str.text));
+          free(obj->str.text);
+          printf("\n");
+          break;
+        case SYMBOL:
+          memset(obj->symbol.name, 0, strlen(obj->symbol.name));
+          free(obj->symbol.name);
+          printf("\n");
+          break;
+        case CELL:
+          cells++;
+          break;
+        default:
+          printf("\n");
+          break;
+      }
+
+      free_list_arr[i] = obj;
+      active_list_arr[i] = NULL;
+      swept++;
+
+    } else {
+#ifdef GC_DEBUG
+      /* printf("Mark it ZERO! %d ", obj->mark); */
+      printf("Do NOT sweep: %p %d ", obj, obj->id);
+      print(obj);
+      switch (obj->type) {
+        case STRING:
+          break;
+        case SYMBOL:
+          printf("\n");
+          break;
+        case PROC:
+          printf("\n");
+          break;
+        case PRIMITIVE:
+          printf("\n");
+          break;
+        default:
+          //printf("\n");
+          break;
+      }
+      if (!is_active(obj)) {
+        error("NOT found in active list!\n");
+      }
+#endif
+      obj->mark = 0;
+      kept++;
+    }
+
+    counted++;
+  }
+#ifdef GC_DEBUG
+  printf("Done sweep: %d kept %d swept %d counted\n\n", kept, swept, counted);
   printf("%d cells\n", cells);
 #endif
 }
@@ -463,7 +543,7 @@ int check_active() {
     obj = obj->next;
   }
 #ifdef GC_DEBUG
-  printf("\nDone check_active: %d counted\n", counted);
+  printf("Done check_active: %d counted\n\n", counted);
 #endif
   return counted;
 }
@@ -483,7 +563,7 @@ int check_free() {
     obj = obj->next;
   }
 #ifdef GC_DEBUG
-  printf("\nDone check_free: %d counted\n", counted);
+  printf("Done check_free: %d counted\n\n", counted);
 #endif
   return counted;
 }
@@ -502,7 +582,7 @@ void check_mem() {
 void gc() {
 
   printf("\nGC v----------------------------------------v\n");
-  check_mem();
+  //check_mem();
 
 #ifdef GC_MARK
   /* current_mark++; */
@@ -536,13 +616,13 @@ void gc() {
 #ifdef GC_SWEEP
   printf("\n-------- Sweep\n");
   sweep();
-  check_mem();
+  //check_mem();
 #endif
 
   printf("\nGC ^----------------------------------------^\n");
 }
 
-Object *alloc_Object() {
+Object *alloc_Object2() {
   if (free_list == NULL) {
     gc();
 
@@ -576,9 +656,49 @@ Object *alloc_Object() {
   printf("Allocate an object at  = %p\n", obj);
 #endif
 
+#ifdef GC_DEBUG
+  if (obj->id >= 4 && obj->id <= 5) {
+    //printf("TARGET!\n");
+  }
+#endif
+
   return obj;
 }
-#endif
+
+Object *find_next_free() {
+  Object *obj = NULL;
+
+  for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
+    obj = free_list_arr[i];
+
+    if (obj != NULL) {
+      free_list_arr[i] = NULL;
+      active_list_arr[i] = obj;
+      break;
+    }
+  }
+
+  return obj;
+}
+
+#endif // GC_ENABLED
+
+Object *alloc_Object() {
+  Object *obj = find_next_free();
+
+  if (obj == NULL) {
+    gc();
+
+    obj = find_next_free();
+
+    if (obj == NULL) {
+      printf("Out of memory\n");
+      exit(-1);
+    }
+  }
+
+  return obj;
+}
 
 Object *new_Object() {
 #ifdef GC_ENABLED
@@ -854,12 +974,7 @@ Object *read_number(FILE *in) {
 
 Object *read_list(FILE *);
 
-// XXX Review these:
-// strchr
-// strdup
-// strcmp
-// strspn
-// atoi
+// XXX Review these: strchr, strdup, strcmp, strspn, atoi
 Object *read_lisp(FILE *in) {
   Object *obj = s_nil;
   char c;
@@ -1293,8 +1408,9 @@ void init() {
     Object *obj = calloc(1, sizeof(struct Object));
     obj->id = i;
     obj->type = UNKNOWN;
-    obj->next = free_list;
-    free_list = obj;
+    free_list_arr[i] = obj;
+    //obj->next = free_list;
+    //free_list = obj;
   }
 }
 
@@ -1460,11 +1576,13 @@ void run_file_tests(char *fname) {
   while (result != NULL) {
     printf("\n----\nREAD\n");
     result = read_lisp(fp);
-    print(result);
+    //print(result);
     printf("\n----\nEVALUATE\n");
+    print(result);
     result = eval(result, env);
     print(result);
     printf("\n");
+    gc();
   }
 
   fclose(fp);
@@ -1509,12 +1627,12 @@ int main(int argc, char* argv[]) {
   extend_env(env, intern_symbol("*"), make_primitive(primitive_mul));
   extend_env(env, intern_symbol("/"), make_primitive(primitive_div));
 
-#ifdef GC_TEST
+#ifdef CODE_TEST
   run_gc_tests();
 #endif
 
 #ifdef FILE_TEST
-  run_file_tests("./test.lsp");
+  run_file_tests("./test2.lsp");
 #endif
 
 #ifdef REPL
