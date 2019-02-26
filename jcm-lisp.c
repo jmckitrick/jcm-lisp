@@ -245,7 +245,7 @@ void setcdr(Object *obj, Object *val) {
     error("Cannot set NULL cdr");
 
   if (obj->cell.cdr != NULL && obj->cell.cdr != s_nil)
-    printf("Changing %p -> cdr %p to %p\n", obj, obj->cell.cdr, val);
+    //printf("Changing %p -> cdr %p to %p\n", obj, obj->cell.cdr, val);
 
   obj->cell.cdr = val;
 }
