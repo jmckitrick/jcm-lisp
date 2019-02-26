@@ -467,9 +467,6 @@ void gc() {
   //check_mem();
 
 #ifdef GC_MARK
-  /* current_mark++; */
-  /* printf("Current mark: %d\n", current_mark); */
-
   printf("\n-------- Mark symbols:");
   mark(symbols);
 
