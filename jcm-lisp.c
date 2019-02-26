@@ -624,27 +624,28 @@ Object *make_proc(Object *vars, Object *body, Object *env) {
   return obj;
 }
 
-/* Walk simple linked list of symbols
+/* Walk linked list of symbols
  * for one matching name.
  */
 Object *lookup_symbol(char *name) {
   Object *cell = symbols;
   Object *sym;
 
-  //printf("Symbol for lookup %s\n", name);
+  printf("Symbol for lookup %s\n", name);
 
   while (cell != s_nil) {
     sym = car(cell);
 
-    //printf("Symbol for lookup comparison? %d %s\n", is_symbol(sym), sym->symbol.name);
+    printf("Symbol for lookup comparison? %d %s\n", is_symbol(sym), sym->symbol.name);
 
     if (is_symbol(sym) &&
         strcmp(sym->symbol.name, name) == 0) {
-      //printf("Symbol lookup succeeded\n");
-      //printf("Symbol address %p\n", sym);
+      printf("Symbol lookup succeeded\n");
+      printf("Symbol address %p\n", sym);
       return sym;
     }
 
+    //printf("Still looking....\n");
     cell = cdr(cell);
   }
 
