@@ -961,8 +961,8 @@ Object *apply(Object *proc, Object *args, Object *env) {
 }
 
 Object *eval_symbol(Object *obj, Object *env) {
-  /* printf("Symbol %p\n", obj); */
-  /* printf("Symbol name '%s'\n", obj->symbol.name); */
+  printf("Eval symbol %p\n", obj);
+  printf("Symbol name '%s'\n", obj->symbol.name);
 
   Object *pair = assoc(obj, env);
 
