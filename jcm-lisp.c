@@ -971,8 +971,9 @@ Object *eval_symbol(Object *obj, Object *env) {
     asprintf(&buff, "Undefined symbol '%s'", obj->symbol.name);
     error(buff);
   }
-  /* printf("Pair   = %p\n", pair); */
-  /* printf("Symbol = %p\n", cdr(pair)); */
+
+  printf("Pair   = %p\n", pair);
+  printf("Symbol = %p\n", cdr(pair));
 
   return cdr(pair);
 }
