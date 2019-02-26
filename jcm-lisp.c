@@ -270,29 +270,14 @@ void mark(Object *obj) {
     return;
   }
 
-  //sleep(1);
-
 #ifdef GC_DEBUG
   //printf("\nBefore mark: %p %d", obj, obj->mark);
 #endif
 
-  /* if (obj->mark > current_mark + 10) { */
-  /*   printf("\nToo many marks:\n"); */
-  /*   print(obj); */
-  /*   exit(-1); */
-  /* } */
-
-  //obj->mark++;
-  //obj->mark = 1;
   obj->mark = current_mark;
 
 #ifdef GC_DEBUG
   //printf("\nAfter mark: %p %d", obj, obj->mark);
-  if (obj->id >= 4 && obj->id <= 5) {
-    //printf("TARGET! v\n");
-    //print(obj);
-    //printf("TARGET! ^\n");
-  }
 #endif
 
   switch (obj->type) {
