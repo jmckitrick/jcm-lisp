@@ -1280,7 +1280,6 @@ int main(int argc, char* argv[]) {
   extend_env(env, intern_symbol("/"), make_primitive(primitive_div));
 
 #ifdef CODE_TEST
-  run_gc_tests();
 #endif
 
 #ifdef FILE_TEST
