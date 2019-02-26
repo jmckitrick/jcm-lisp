@@ -19,8 +19,8 @@
 //#define MAX_ALLOC_SIZE  48
 //#define MAX_ALLOC_SIZE  56
 //#define MAX_ALLOC_SIZE  64
-#define MAX_ALLOC_SIZE  128
-//#define MAX_ALLOC_SIZE  256
+//#define MAX_ALLOC_SIZE  128
+#define MAX_ALLOC_SIZE  256
 //#define MAX_ALLOC_SIZE  1000
 //#define MAX_ALLOC_SIZE  10000
 
@@ -32,8 +32,8 @@
 //#define GC_PIN
 
 //#define CODE_TEST
-#define FILE_TEST
-//#define REPL
+//#define FILE_TEST
+#define REPL
 
 typedef enum {
   UNKNOWN = 0,
@@ -105,10 +105,8 @@ Object *s_t;
 
 Object *s_lambda;
 
-Object *free_list;
-Object *active_list;
-Object *free_list_arr[MAX_ALLOC_SIZE];
-Object *active_list_arr[MAX_ALLOC_SIZE];
+Object *free_list[MAX_ALLOC_SIZE];
+Object *active_list[MAX_ALLOC_SIZE];
 Object *env;
 
 int current_mark;
@@ -360,92 +358,11 @@ void mark(Object *obj) {
 
 int is_active(Object *needle) {
   for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
-    if (active_list_arr[i] == needle)
+    if (active_list[i] == needle)
       return 1;
   }
 
   return 0;
-}
-
-void sweep2() {
-  Object *obj = active_list;
-  int counted = 0, kept = 0, swept = 0;
-  int cells = 0;
-
-  printf("Active list            = %p\n", active_list);
-  printf("Free list              = %p\n", free_list);
-
-  while (obj != NULL) {
-    Object *next = obj->next;
-#ifdef GC_DEBUG
-    //printf("\nObj at                 = %p\n", obj);
-#endif
-
-    if (obj->mark == 0) {
-      //printf("obj->mark: %d\n", obj->mark);
-      printf("SWEEP: %p %d ", obj, obj->id);
-      print(obj);
-
-      // Free any additional allocated memory.
-      switch (obj->type) {
-        case STRING:
-          memset(obj->str.text, 0, strlen(obj->str.text));
-          free(obj->str.text);
-          printf("\n");
-          break;
-        case SYMBOL:
-          memset(obj->symbol.name, 0, strlen(obj->symbol.name));
-          free(obj->symbol.name);
-          printf("\n");
-          break;
-        case CELL:
-          cells++;
-          break;
-        default:
-          printf("\n");
-          break;
-      }
-
-      active_list = obj->next;
-      printf("Active list now        = %p\n", active_list);
-      obj->next = free_list;
-      free_list = obj;
-      printf("Free list now          = %p\n", free_list);
-      swept++;
-    } else {
-#ifdef GC_DEBUG
-      /* printf("Mark it ZERO! %d ", obj->mark); */
-      printf("Do NOT sweep: %p %d ", obj, obj->id);
-      print(obj);
-      switch (obj->type) {
-        case STRING:
-          break;
-        case SYMBOL:
-          printf("\n");
-          break;
-        case PROC:
-          printf("\n");
-          break;
-        default:
-          break;
-      }
-      if (!is_active(obj)) {
-        error("NOT found in active list!\n");
-      }
-#endif
-      obj->mark = 0;
-      kept++;
-    }
-    printf("Active list now        = %p\n", active_list);
-    printf("Free list now          = %p\n", free_list);
-
-    obj = next;
-    counted++;
-  }
-#ifdef GC_DEBUG
-  printf("Done sweep: %d kept %d swept %d counted\n\n", kept, swept, counted);
-  printf("%d cells\n", cells);
-#endif
 }
 
 void sweep() {
@@ -453,7 +370,7 @@ void sweep() {
   int cells = 0;
 
   for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
-    Object *obj = active_list_arr[i];
+    Object *obj = active_list[i];
 
     if (obj == NULL)
       continue;
@@ -487,8 +404,8 @@ void sweep() {
           break;
       }
 
-      free_list_arr[i] = obj;
-      active_list_arr[i] = NULL;
+      free_list[i] = obj;
+      active_list[i] = NULL;
       swept++;
 
     } else {
@@ -529,19 +446,13 @@ void sweep() {
 }
 
 int check_active() {
-  Object *obj = active_list;
   int counted = 0;
 
-  //printf("Active list            = %p\n", active_list);
-
-  while (obj != NULL) {
-    printf("Active %p %d\n", obj, obj->id);
-    //printf("Active %p\n", obj);
-    //print(obj);
-    //printf("\n");
-    counted++;
-    obj = obj->next;
+  for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
+    if (active_list[i] != NULL)
+      counted++;
   }
+
 #ifdef GC_DEBUG
   printf("Done check_active: %d counted\n\n", counted);
 #endif
@@ -549,19 +460,13 @@ int check_active() {
 }
 
 int check_free() {
-  Object *obj = free_list;
   int counted = 0;
 
-  //printf("Free list              = %p\n", free_list);
-
-  while (obj != NULL) {
-    printf("Free %p %d\n", obj, obj->id);
-    //printf("Active %p\n", obj);
-    //print(obj);
-    //printf("\n");
-    counted++;
-    obj = obj->next;
+  for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
+    if (free_list[i] != NULL)
+      counted++;
   }
+
 #ifdef GC_DEBUG
   printf("Done check_free: %d counted\n\n", counted);
 #endif
@@ -622,58 +527,15 @@ void gc() {
   printf("\nGC ^----------------------------------------^\n");
 }
 
-Object *alloc_Object2() {
-  if (free_list == NULL) {
-    gc();
-
-    if (free_list == NULL) {
-      printf("Out of memory\n");
-      exit(-1);
-    }
-  }
-
-  Object *obj = free_list;
-
-#ifdef GC_DEBUG_X
-  printf("\nFree list before alloc = %p\n", free_list);
-#endif
-
-  // free_list will point to the object after this one.
-  free_list = obj->next;
-
-#ifdef GC_DEBUG_X
-  printf("Free list after alloc  = %p\n", free_list);
-#endif
-
-  // this object will point to active_list
-  obj->next = active_list;
-
-  // active_list will start with this object
-  active_list = obj;
-
-#ifdef GC_DEBUG_X
-  printf("Active list            = %p\n", active_list);
-  printf("Allocate an object at  = %p\n", obj);
-#endif
-
-#ifdef GC_DEBUG
-  if (obj->id >= 4 && obj->id <= 5) {
-    //printf("TARGET!\n");
-  }
-#endif
-
-  return obj;
-}
-
 Object *find_next_free() {
   Object *obj = NULL;
 
   for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
-    obj = free_list_arr[i];
+    obj = free_list[i];
 
     if (obj != NULL) {
-      free_list_arr[i] = NULL;
-      active_list_arr[i] = obj;
+      free_list[i] = NULL;
+      active_list[i] = obj;
       break;
     }
   }
@@ -1043,11 +905,11 @@ Object *read_list(FILE *in) {
  * and the existing env in the tail.
  */
 Object *extend(Object *env, Object *var, Object *val) {
-  printf("Extend list %p with var ", env);
-  print(var);
-  printf(" = ");
-  print(val);
-  printf("\n");
+  /* printf("Extend list %p with var ", env); */
+  /* print(var); */
+  /* printf(" = "); */
+  /* print(val); */
+  /* printf("\n"); */
 
   Object *pair = cons(var, val);
 
@@ -1060,13 +922,13 @@ Object *extend(Object *env, Object *var, Object *val) {
  */
 Object *extend_env(Object* env, Object *var, Object *val) {
   Object *current_env = cdr(env);
-  printf("Current env = ");
-  print(env);
-  printf("Extend env %p with var ", env);
-  print(var);
-  printf(" = ");
-  print(val);
-  printf("\n");
+  /* printf("Current env = "); */
+  /* print(env); */
+  /* printf("Extend env %p with var ", env); */
+  /* print(var); */
+  /* printf(" = "); */
+  /* print(val); */
+  /* printf("\n"); */
 
   Object *updated_env = extend(current_env, var, val);
 
@@ -1125,13 +987,8 @@ Object *apply(Object *proc, Object *args, Object *env) {
 }
 
 Object *eval_symbol(Object *obj, Object *env) {
-  if (obj == s_nil) {
-    printf("\ns_nil??\n");
-    return obj;
-  }
-
-  printf("Symbol %p\n", obj);
-  printf("Symbol name '%s'\n", obj->symbol.name);
+  /* printf("Symbol %p\n", obj); */
+  /* printf("Symbol name '%s'\n", obj->symbol.name); */
 
   Object *pair = assoc(obj, env);
 
@@ -1140,10 +997,9 @@ Object *eval_symbol(Object *obj, Object *env) {
     asprintf(&buff, "Undefined symbol '%s'", obj->symbol.name);
     error(buff);
   }
-  printf("Pair   = %p\n", pair);
-  printf("Symbol = %p\n", cdr(pair));
+  /* printf("Pair   = %p\n", pair); */
+  /* printf("Symbol = %p\n", cdr(pair)); */
 
-  // Is this the right thing to return for a symbol eval??
   return cdr(pair);
 }
 
@@ -1151,12 +1007,10 @@ Object *eval_list(Object *obj, Object *env) {
   if (obj == s_nil)
     return obj;
 
-  printf("Eval list\n");
+  //printf("Eval list\n");
 
   if (car(obj) == s_define) {
-    // (define var val)
-    Object *cell = obj;
-    //Object *cell_define = car(cell); // should be symbol named define
+    Object *cell = obj; // car(cell) should be symbol named define
 
     cell = cdr(cell);
     Object *cell_symbol = car(cell);
@@ -1167,11 +1021,18 @@ Object *eval_list(Object *obj, Object *env) {
     Object *var = cell_symbol;
     Object *val = eval(cell_value, env);
 
-    // BUG!? multiple defines = multiple envs!!!
-    return extend_env(env, var, val);
+    // Check for existing binding?
+    Object *pair = assoc(cell_symbol, env);
+
+    if (pair == NULL) {
+      return extend_env(env, var, val);
+    } else {
+      setcdr(pair, val);
+
+      return val;
+    }
   } else if (car(obj) == s_setq) {
-    Object *cell = obj;
-    //Object *cell_setq = car(cell); // should be symbol named setq
+    Object *cell = obj; // car(cell) should be symbol named setq
 
     cell = cdr(cell);
     Object *cell_symbol = car(cell);
@@ -1179,48 +1040,14 @@ Object *eval_list(Object *obj, Object *env) {
     cell = cdr(cell);
     Object *cell_value = car(cell);
 
-    // Should we use assoc here?
-    // Or maybe just eval_symbol?
-    // symbol should be unevaluated?
-    // Or do we evaluate it and setcdr?
     Object *pair = assoc(cell_symbol, env);
-    Object **pair_cdr = &pair->cell.cdr;
-    //Object *var_cdr = eval_symbol(cell_symbol, env);
-    Object *var_res = eval_symbol(cell_symbol, env);
-    Object **var_cdr = &var_res;
     Object *newval = eval(cell_value, env);
 
-    printf("before pair     %p %p\n", &pair, pair);
-    printf("before pair_cdr %p %p %p\n", &pair_cdr, pair_cdr, *pair_cdr);
-    //printf("before var_cdr  %p %p\n", &var_cdr, var_cdr);
-    printf("before var_cdr  %p %p %p\n", &var_cdr, var_cdr, *var_cdr);
-    printf("before pair cdr %p %p\n", &pair->cell.cdr, pair->cell.cdr);
-    //printf("before pair cdr %p\n", &pair->cell.cdr);
-    //printf("before cdr of pair %p\n", cdr(pair));
-    printf("\n");
-
-    // BAD
-    //*var_cdr = newval;
-
-    // GOOD
-    **var_cdr = *newval;
-    //*var_res = *newval;
-    //*pair_cdr = newval;
-    //pair->cell.cdr = newval;
-    //setcdr(pair, newval);
-
-    printf("after pair      %p %p\n", &pair, pair);
-    printf("after pair_cdr  %p %p %p\n", &pair_cdr, pair_cdr, *pair_cdr);
-    printf("after var_cdr   %p %p\n", &var_cdr, var_cdr);
-    //printf("after var_cdr   %p %p %p\n", &var_cdr, var_cdr, *var_cdr);
-    printf("after pair cdr  %p %p\n", &pair->cell.cdr, pair->cell.cdr);
-    //printf("after pair cdr  %p\n", &pair->cell.cdr);
-    //printf("after cdr of pair  %p\n", cdr(pair));
+    setcdr(pair, newval);
 
     return newval;
   } else if (car(obj) == s_if) {
     Object *cell = obj;
-    //Object *cell_if = car(cell);
 
     cell = cdr(cell);
     Object *cell_condition = car(cell);
@@ -1258,7 +1085,7 @@ Object *eval(Object *obj, Object *env) {
 
   Object *result = s_nil;
 
-  printf("Eval:\n");
+  //printf("Eval:\n");
 
   switch (obj->type) {
     case STRING:
@@ -1397,8 +1224,6 @@ Object *primitive_eq(Object *args) {
 }
 
 void init() {
-  free_list = NULL;
-  active_list = NULL;
 
 #ifdef GC_ENABLED
   current_mark = 1;
@@ -1408,16 +1233,13 @@ void init() {
     Object *obj = calloc(1, sizeof(struct Object));
     obj->id = i;
     obj->type = UNKNOWN;
-    free_list_arr[i] = obj;
-    //obj->next = free_list;
-    //free_list = obj;
+    free_list[i] = obj;
   }
 }
 
 void run_gc_tests() {
   printf("\nv----------------------------------------v\n");
   printf("\nRunning GC tests.\n");
-  current_mark = 10;
 
   //check_mem();
 
@@ -1582,7 +1404,7 @@ void run_file_tests(char *fname) {
     result = eval(result, env);
     print(result);
     printf("\n");
-    gc();
+    //gc();
   }
 
   fclose(fp);
@@ -1615,6 +1437,7 @@ int main(int argc, char* argv[]) {
    * returning a new head.
    */
   env = cons(cons(s_nil, s_nil), s_nil);
+  extend_env(env, s_t, s_t);
 
   extend_env(env, intern_symbol("cons"), make_primitive(prim_cons));
   extend_env(env, intern_symbol("car"), make_primitive(prim_car));
@@ -1651,9 +1474,3 @@ int main(int argc, char* argv[]) {
 
   return 0;
 }
-
-/*
-Free: 1-54,58-65
-Active: 66-127
-???: 55-57
- */
