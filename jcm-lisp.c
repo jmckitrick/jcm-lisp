@@ -670,14 +670,18 @@ Object *intern_symbol(char *name) {
   return sym;
 }
 
-// BUG: Does not walk list of environments!
+// BUG: Does not walk list of environments! (?)
 Object *assoc(Object *key, Object *list) {
   if (list != s_nil) {
     Object *pair = car(list);
-    //printf("\nAssoc check %s\n", car(pair)->symbol.name);
+    printf("Assoc:\n");
+    print(pair);
+    printf("\nAssoc check '%s' vs '%s'\n", car(pair)->symbol.name, car(key)->symbol.name);
+    printf("\nAssoc check %p vs %p\n", car(pair), key);
     if (car(pair) == key)
       return pair;
 
+    printf("Still looking....\n");
     return assoc(key, cdr(list));
   }
 
