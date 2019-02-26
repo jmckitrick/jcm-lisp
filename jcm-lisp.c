@@ -14,15 +14,7 @@
 
 #define MAX_BUFFER_SIZE 100
 
-//#define MAX_ALLOC_SIZE  24
-//#define MAX_ALLOC_SIZE  32
-//#define MAX_ALLOC_SIZE  48
-//#define MAX_ALLOC_SIZE  56
-//#define MAX_ALLOC_SIZE  64
-//#define MAX_ALLOC_SIZE  128
 #define MAX_ALLOC_SIZE  256
-//#define MAX_ALLOC_SIZE  1000
-//#define MAX_ALLOC_SIZE  10000
 
 #define GC_ENABLED
 #define GC_MARK
