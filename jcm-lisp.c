@@ -481,16 +481,11 @@ void gc() {
   while (*pv != NULL) {
     printf("pinned_variable = %p\n", *pv);
     print((struct Object *)(*pv)->variable);
-    //((struct Object *)(*pv)->variable)->mark = current_mark;
-    ((struct Object *)(*pv)->variable)->mark = 99;
+    ((struct Object *)(*pv)->variable)->mark = current_mark;
     pv = &(*pv)->next;
   }
-#endif
-  /* while (*pv != NULL) { */
-  /*   (*(*pv)->variable)->mark = current_mark; */
-  /*   pv = &(*pv)->next; */
-  /* } */
-#endif
+#endif // GC_PIN
+#endif // GC_MARK
 
 #ifdef GC_SWEEP
   printf("\n-------- Sweep\n");
