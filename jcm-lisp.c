@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
 #include <sys/errno.h>
 
 #define MAX_BUFFER_SIZE 100
@@ -20,12 +21,13 @@
 #define GC_MARK
 #define GC_SWEEP
 #define GC_DEBUG
-//#define GC_DEBUG_X
+#define GC_DEBUG_X
 //#define GC_PIN
+//#define GC_DEBUG_PIN
 
 //#define CODE_TEST
-//#define FILE_TEST
-#define REPL
+#define FILE_TEST
+//#define REPL
 
 typedef enum {
   UNKNOWN = 0,
@@ -118,9 +120,9 @@ struct PinnedVariable *pinned_variables;
 
 void pin_variable(Object **obj) {
 
-#ifdef GC_DEBUG_X
+#ifdef GC_DEBUG_PIN
   printf("> variable %p\n", obj);
-#endif
+#endif //GC_DEBUG_PIN
 
   struct PinnedVariable *pinned_var = calloc(1, sizeof(struct PinnedVariable));
   assert(pinned_var != NULL);
@@ -128,18 +130,18 @@ void pin_variable(Object **obj) {
 
   pinned_var->next = pinned_variables;
 
-#ifdef GC_DEBUG_X
+#ifdef GC_DEBUG_PIN
   printf("Pinned variable         = %p\n", pinned_var);
   //printf("Pinned variable         = ");
   //print((struct Object *)pinned_var->variable);
   printf("Pinned variables before = %p\n", pinned_variables);
-#endif
+#endif //GC_DEBUG_PIN
 
   pinned_variables = pinned_var;
 
-#ifdef GC_DEBUG_X
+#ifdef GC_DEBUG_PIN
   printf("Pinned variables after  = %p\n", pinned_variables);
-#endif
+#endif //GC_DEBUG_PIN
 }
 #else
 void pin_variable(Object **obj) { }
@@ -148,9 +150,9 @@ void pin_variable(Object **obj) { }
 #ifdef GC_PIN
 void unpin_variable(Object **variable) {
 
-#ifdef GC_DEBUG_X
+#ifdef GC_DEBUG_PIN
   printf("< variable %p\n", variable);
-#endif
+#endif //GC_DEBUG_PIN
 
   struct PinnedVariable **v;
   for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
@@ -158,14 +160,15 @@ void unpin_variable(Object **variable) {
 
     if (target->variable == variable) {
 
-#ifdef GC_DEBUG_X
-      printf("Pinned variable found %p\n", *v);
+#ifdef GC_DEBUG_PIN
+      printf("Pinned variable found %p\n", target);
+      print((struct Object *)target->variable);
 #endif
       struct PinnedVariable *next = target->next;
       free(target);
       target = next;
-#ifdef GC_DEBUG_X
-      printf("Pinned variable  head %p\n", *v);
+#ifdef GC_DEBUG_PIN
+      //printf("Pinned variable  head %p\n", *v);
 #endif
       return;
     }
@@ -244,8 +247,9 @@ void setcdr(Object *obj, Object *val) {
   if (obj == NULL)
     error("Cannot set NULL cdr");
 
-  if (obj->cell.cdr != NULL && obj->cell.cdr != s_nil)
+  if (obj->cell.cdr != NULL && obj->cell.cdr != s_nil) {
     //printf("Changing %p -> cdr %p to %p\n", obj, obj->cell.cdr, val);
+  }
 
   obj->cell.cdr = val;
 }
@@ -255,30 +259,30 @@ void mark(Object *obj) {
   if (obj == NULL) {
 #ifdef GC_DEBUG
     printf("\nNothing to mark: NULL");
-#endif
+#endif // GC_DEBUG
     return;
   }
 #ifdef GC_DEBUG
   Object *temp = obj; printf("\nMarking %p\n", temp);
-#endif
+#endif // GC_DEBUG
   if (obj->mark > 0) {
 #ifdef GC_DEBUG
     printf("Mark:\n");
     printf("\nNothing to mark: already marked\n");
     //print(obj);
-#endif
+#endif // GC_DEBUG
     return;
   }
 
 #ifdef GC_DEBUG
   //printf("\nBefore mark: %p %d", obj, obj->mark);
-#endif
+#endif // GC_DEBUG
 
   obj->mark = current_mark;
 
 #ifdef GC_DEBUG
   //printf("\nAfter mark: %p %d", obj, obj->mark);
-#endif
+#endif // GC_DEBUG
 
   switch (obj->type) {
     case FIXNUM:
@@ -288,44 +292,44 @@ void mark(Object *obj) {
 #ifdef GC_DEBUG
       printf("\nMark %d %s ", obj->id, get_type(obj));
       print(obj);
-#endif
+#endif // GC_DEBUG
       break;
     case CELL:
 #ifdef GC_DEBUG
       printf("\nMark cell car %p -> %p", obj, obj->cell.car);
-#endif
+#endif // GC_DEBUG
       mark(obj->cell.car);
 #ifdef GC_DEBUG
       printf("\nMark cell car %p <-", obj);
-#endif
+#endif // GC_DEBUG
 #ifdef GC_DEBUG
       printf("\nMark cell cdr %p -> %p", obj, obj->cell.cdr);
-#endif
+#endif // GC_DEBUG
       mark(obj->cell.cdr);
 #ifdef GC_DEBUG
       printf("\nMark cell cdr %p <-", obj);
-#endif
+#endif // GC_DEBUG
       break;
     case PROC:
 #ifdef GC_DEBUG
       printf("\nMark proc ->");
       //print(obj);
-#endif
+#endif // GC_DEBUG
 #ifdef GC_DEBUG
       printf("\nMark proc vars");
-#endif
+#endif // GC_DEBUG
       mark(obj->proc.vars);
 #ifdef GC_DEBUG
       printf("\nMark proc body");
-#endif
+#endif // GC_DEBUG
       mark(obj->proc.body);
 #ifdef GC_DEBUG
       printf("\nMark proc env");
-#endif
+#endif // GC_DEBUG
       mark(obj->proc.env);
 #ifdef GC_DEBUG
       printf("\nMark proc <-");
-#endif
+#endif // GC_DEBUG
       break;
     default:
       printf("\nMark unknown object: %d\n", obj->type);
@@ -354,7 +358,7 @@ void sweep() {
 
 #ifdef GC_DEBUG
     //printf("\nObj at                 = %p\n", obj);
-#endif
+#endif // GC_DEBUG
 
     if (obj->mark == 0) {
       //printf("obj->mark: %d\n", obj->mark);
@@ -409,7 +413,7 @@ void sweep() {
       if (!is_active(obj)) {
         error("NOT found in active list!\n");
       }
-#endif
+#endif // GC_DEBUG
       obj->mark = 0;
       kept++;
     }
@@ -419,7 +423,7 @@ void sweep() {
 #ifdef GC_DEBUG
   printf("Done sweep: %d kept %d swept %d counted\n\n", kept, swept, counted);
   printf("%d cells\n", cells);
-#endif
+#endif // GC_DEBUG
 }
 
 int check_active() {
@@ -432,7 +436,7 @@ int check_active() {
 
 #ifdef GC_DEBUG
   printf("Done check_active: %d counted\n\n", counted);
-#endif
+#endif // GC_DEBUG
   return counted;
 }
 
@@ -446,7 +450,7 @@ int check_free() {
 
 #ifdef GC_DEBUG
   printf("Done check_free: %d counted\n\n", counted);
-#endif
+#endif // GC_DEBUG
   return counted;
 }
 
@@ -464,7 +468,7 @@ void check_mem() {
 void gc() {
 
   printf("\nGC v----------------------------------------v\n");
-  //check_mem();
+  check_mem();
 
 #ifdef GC_MARK
   printf("\n-------- Mark symbols:");
@@ -490,8 +494,8 @@ void gc() {
 #ifdef GC_SWEEP
   printf("\n-------- Sweep\n");
   sweep();
-  //check_mem();
-#endif
+  check_mem();
+#endif // GC_SWEEP
 
   printf("\nGC ^----------------------------------------^\n");
 }
@@ -631,17 +635,23 @@ Object *lookup_symbol(char *name) {
   Object *cell = symbols;
   Object *sym;
 
+#ifdef GC_DEBUG_X
   printf("Symbol for lookup %s\n", name);
+#endif
 
   while (cell != s_nil) {
     sym = car(cell);
 
+#ifdef GC_DEBUG_X
     printf("Symbol for lookup comparison? %d %s\n", is_symbol(sym), sym->symbol.name);
+#endif
 
     if (is_symbol(sym) &&
         strcmp(sym->symbol.name, name) == 0) {
+#ifdef GC_DEBUG_X
       printf("Symbol lookup succeeded\n");
       printf("Symbol address %p\n", sym);
+#endif
       return sym;
     }
 
@@ -674,14 +684,14 @@ Object *intern_symbol(char *name) {
 Object *assoc(Object *key, Object *list) {
   if (list != s_nil) {
     Object *pair = car(list);
-    printf("Assoc:\n");
+    //printf("Assoc:\n");
     print(pair);
-    printf("\nAssoc check '%s' vs '%s'\n", car(pair)->symbol.name, car(key)->symbol.name);
-    printf("\nAssoc check %p vs %p\n", car(pair), key);
+    //printf("\nAssoc check '%s' vs '%s'\n", car(pair)->symbol.name, car(key)->symbol.name);
+    //printf("\nAssoc check %p vs %p\n", car(pair), key);
     if (car(pair) == key)
       return pair;
 
-    printf("Still looking....\n");
+    //printf("Still looking....\n");
     return assoc(key, cdr(list));
   }
 
@@ -1283,7 +1293,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef FILE_TEST
-  run_file_tests("./test2.lsp");
+  run_file_tests("./test3.lsp");
 #endif
 
 #ifdef REPL
