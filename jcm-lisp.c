@@ -849,6 +849,7 @@ Object *read_lisp(FILE *in) {
 #ifdef REPL
     exit(0);
 #else
+    printf("EOL\n");
     return NULL;
 #endif
   }
@@ -1141,7 +1142,7 @@ void print_cell(Object *car) {
 
 void print(Object *obj) {
   if (obj == NULL) {
-    printf("NULL ERROR\n");
+    printf("NULL OBJECT\n");
     return;
   }
 
@@ -1237,7 +1238,7 @@ void run_file_tests(char *fname) {
   while (result != NULL) {
     printf("\n----\nREAD\n");
     result = read_lisp(fp);
-    //print(result);
+    print(result);
     printf("\n----\nEVALUATE\n");
     print(result);
     result = eval(result, env);
