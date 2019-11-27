@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 2 ; -*- */
 /*
  * JCM-LISP
  *
@@ -9,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <ctype.h>
 #include <assert.h>
 #include <sys/errno.h>
@@ -22,8 +24,8 @@
 #define GC_SWEEP
 #define GC_DEBUG
 #define GC_DEBUG_X
-//#define GC_PIN
-//#define GC_DEBUG_PIN
+#define GC_PIN
+#define GC_DEBUG_PIN
 
 //#define CODE_TEST
 #define FILE_TEST
@@ -112,6 +114,7 @@ void error(char *msg) {
 
 #ifdef GC_PIN
 struct PinnedVariable {
+  //Object *variable;
   Object **variable;
   struct PinnedVariable *next;
 };
@@ -121,12 +124,14 @@ struct PinnedVariable *pinned_variables;
 void pin_variable(Object **obj) {
 
 #ifdef GC_DEBUG_PIN
+  printf("Pin\n");
   printf("> variable %p\n", obj);
 #endif //GC_DEBUG_PIN
 
   struct PinnedVariable *pinned_var = calloc(1, sizeof(struct PinnedVariable));
   assert(pinned_var != NULL);
   pinned_var->variable = obj;
+  //pinned_var->variable = *obj;
 
   pinned_var->next = pinned_variables;
 
@@ -159,16 +164,19 @@ void unpin_variable(Object **variable) {
     struct PinnedVariable *target = *v;
 
     if (target->variable == variable) {
+//    if (target->variable == *variable) {
 
 #ifdef GC_DEBUG_PIN
       printf("Pinned variable found %p\n", target);
-      print((struct Object *)target->variable);
+      //printf("Pinned variable found %p\n", *target);
+      //print((struct Object *)target->variable);
 #endif
       struct PinnedVariable *next = target->next;
       free(target);
       target = next;
 #ifdef GC_DEBUG_PIN
       //printf("Pinned variable  head %p\n", *v);
+      printf("Unpin\n");
 #endif
       return;
     }
@@ -422,7 +430,7 @@ void sweep() {
   }
 #ifdef GC_DEBUG
   printf("Done sweep: %d kept %d swept %d counted\n\n", kept, swept, counted);
-  printf("%d cells\n", cells);
+  printf("%d are cells\n", cells);
 #endif // GC_DEBUG
 }
 
@@ -482,8 +490,9 @@ void gc() {
   struct PinnedVariable **pv = &pinned_variables;
   printf("pinned_variables = %p\n", pinned_variables);
   printf("pinned_variables address = %p\n", pv);
-  while (*pv != NULL) {
-    printf("pinned_variable = %p\n", *pv);
+  while (*pv != NULL &&
+    ((struct Object *)(*pv)->variable)->type != UNKNOWN) {
+    printf("pinned_variable  = %p\n", *pv);
     print((struct Object *)(*pv)->variable);
     ((struct Object *)(*pv)->variable)->mark = current_mark;
     pv = &(*pv)->next;
@@ -525,11 +534,11 @@ Object *alloc_Object() {
     gc();
 
     obj = find_next_free();
+  }
 
-    if (obj == NULL) {
-      printf("Out of memory\n");
-      exit(-1);
-    }
+  if (obj == NULL) {
+    printf("Out of memory\n");
+    exit(-1);
   }
 
   return obj;
@@ -544,6 +553,10 @@ Object *new_Object() {
 
   obj->type = UNKNOWN;
   obj->mark = 0;
+
+#ifdef GC_DEBUG_PIN
+  printf("Allocated object\n");
+#endif
   return obj;
 }
 
@@ -954,18 +967,27 @@ Object *multiple_extend_env(Object *env, Object *vars, Object *vals) {
     return multiple_extend_env(extend(env, car(vars), car(vals)), cdr(vars), cdr(vals));
 }
 
-Object *apply(Object *proc, Object *args, Object *env) {
-  if (is_primitive(proc))
-    return (*proc->primitive.fn)(args);
+Object *apply(Object *obj, Object *args, Object *env) {
+  if (is_primitive(obj))
+    return (*obj->primitive.fn)(args);
 
-  if (is_proc(proc))
-    return progn(proc->proc.body, multiple_extend_env(env, proc->proc.vars, args));
+  if (is_proc(obj))
+    return progn(obj->proc.body, multiple_extend_env(env, obj->proc.vars, args));
 
-  printf("Dumping %s\n", get_type(proc));
-  print(proc);
-  /* print(proc->proc.vars); */
-  /* print(proc->proc.body); */
-  /* print(proc->proc.env); */
+  printf("Dumping %s:\n", get_type(obj));
+  print(obj);
+  printf("\n");
+
+  printf("Proc vars:\n");
+  printf("Proc vars pointer: %p\n", obj->proc.vars);
+  //printf("Proc vars ?: %d\n", obj->proc);
+  printf("Proc vars type: %d\n", obj->proc.vars->type);
+  print(obj->proc.vars);
+  printf("Proc body:\n");
+  print(obj->proc.body);
+  printf("Proc env:\n");
+  print(obj->proc.env);
+
   error("Bad apply");
 
   return s_nil;
@@ -1087,7 +1109,7 @@ Object *eval(Object *obj, Object *env) {
       result = eval_list(obj, env);
       break;
     default:
-      printf("\nUnknown Object: %d\n", obj->type);
+      printf("\nEval Unknown Object: %d\n", obj->type);
       break;
   }
 
@@ -1127,7 +1149,7 @@ void print_cell(Object *car) {
       break;
     }
 
-    //sleep(1);
+//    sleep(1);
     if (obj == obj->cell.cdr)
       error("Circular reference??");
 
@@ -1166,7 +1188,8 @@ void print(Object *obj) {
       printf("<PROC>");
       break;
     default:
-      printf("\nUnknown Object: %d\n", obj->type);
+      printf("\nPrint Unknown Object: %d\n", obj->type);
+      sleep(1);
       break;
   }
 }
@@ -1221,10 +1244,14 @@ void init() {
     obj->type = UNKNOWN;
     free_list[i] = obj;
   }
+
+#ifdef GC_DEBUG_PIN
+  printf("Done init.\n");
+#endif
 }
 
 void run_file_tests(char *fname) {
-  printf("\n\nBEGIN FILE TESTS\n");
+  printf("\n\nBEGIN FILE TESTS: %s\n", fname);
 
   FILE *fp = fopen(fname, "r");
 
@@ -1294,7 +1321,10 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef FILE_TEST
+  run_file_tests("./test1.lsp");
+  run_file_tests("./test2.lsp");
   run_file_tests("./test3.lsp");
+  /* run_file_tests("./test4.lsp"); */
 #endif
 
 #ifdef REPL
