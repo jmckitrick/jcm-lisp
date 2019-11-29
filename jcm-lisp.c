@@ -505,9 +505,10 @@ void gc() {
   printf("pinned_variables = %p\n", pinned_variables);
   printf("pinned_variables address = %p\n", pv);
   while (*pv != NULL &&
-    ((struct Object *)(*pv)->variable)->type != UNKNOWN) {
+         ((struct Object *)(*pv)->variable)->type != UNKNOWN) {
     printf("pinned_variable  = %p\n", *pv);
     print((struct Object *)(*pv)->variable);
+    printf("pinned_variable id = %d\n", ((struct Object *)(*pv)->variable)->id);
     ((struct Object *)(*pv)->variable)->mark = current_mark;
     pv = &(*pv)->next;
   }
