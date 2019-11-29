@@ -75,14 +75,14 @@ struct Proc {
 struct Object {
   obj_type type;
 
-  union {
+//  union {
     struct Fixnum num;
     struct String str;
     struct Symbol symbol;
     struct Cell cell;
     struct Primitive primitive;
     struct Proc proc;
-  };
+//  };
 
   int mark;
   int id;
@@ -117,6 +117,7 @@ struct PinnedVariable {
   //Object *variable;
   Object **variable;
   struct PinnedVariable *next;
+  int inUse;
 };
 
 struct PinnedVariable *pinned_variables;
@@ -125,7 +126,7 @@ void pin_variable(Object **obj) {
 
 #ifdef GC_DEBUG_PIN
   printf("Pin\n");
-  printf("> variable %p\n", obj);
+  printf("> obj %p\n", obj);
 #endif //GC_DEBUG_PIN
 
   struct PinnedVariable *pinned_var = calloc(1, sizeof(struct PinnedVariable));
@@ -133,6 +134,7 @@ void pin_variable(Object **obj) {
   pinned_var->variable = obj;
   //pinned_var->variable = *obj;
 
+  pinned_var->inUse = 1;
   pinned_var->next = pinned_variables;
 
 #ifdef GC_DEBUG_PIN
@@ -156,7 +158,7 @@ void pin_variable(Object **obj) { }
 void unpin_variable(Object **variable) {
 
 #ifdef GC_DEBUG_PIN
-  printf("< variable %p\n", variable);
+  printf("< obj %p\n", variable);
 #endif //GC_DEBUG_PIN
 
   struct PinnedVariable **v;
@@ -167,10 +169,18 @@ void unpin_variable(Object **variable) {
 //    if (target->variable == *variable) {
 
 #ifdef GC_DEBUG_PIN
-      printf("Pinned variable found %p\n", target);
+      printf("Pinned variable found %p %d\n", target, (*variable)->id);
       //printf("Pinned variable found %p\n", *target);
+
+      printf("Containing: ");
+      print((struct Object *)*target->variable);
       //print((struct Object *)target->variable);
+      //print((struct Object **)target->variable);
+      //print(((struct Object **)&(target->variable)));
+
+      printf("\nIn use? %d\n", target->inUse);
 #endif
+      target->inUse = 0;
       struct PinnedVariable *next = target->next;
       free(target);
       target = next;
@@ -401,8 +411,12 @@ void sweep() {
 #ifdef GC_DEBUG
       /* printf("Mark it ZERO! %d ", obj->mark); */
       printf("Do NOT sweep: %p %d ", obj, obj->id);
+
       print(obj);
       switch (obj->type) {
+        case FIXNUM:
+          printf("\n");
+          break;
         case STRING:
           break;
         case SYMBOL:
@@ -443,7 +457,7 @@ int check_active() {
   }
 
 #ifdef GC_DEBUG
-  printf("Done check_active: %d counted\n\n", counted);
+  printf("Done check_active: %d counted\n", counted);
 #endif // GC_DEBUG
   return counted;
 }
@@ -457,7 +471,7 @@ int check_free() {
   }
 
 #ifdef GC_DEBUG
-  printf("Done check_free: %d counted\n\n", counted);
+  printf("Done check_free: %d counted\n", counted);
 #endif // GC_DEBUG
   return counted;
 }
@@ -541,6 +555,10 @@ Object *alloc_Object() {
     exit(-1);
   }
 
+#ifdef GC_DEBUG_X
+  printf("Allocated %d\n", obj->id);
+#endif
+
   return obj;
 }
 
@@ -555,7 +573,7 @@ Object *new_Object() {
   obj->mark = 0;
 
 #ifdef GC_DEBUG_PIN
-  printf("Allocated object\n");
+  printf("Allocated object %p\n", obj);
 #endif
   return obj;
 }
@@ -688,6 +706,10 @@ Object *intern_symbol(char *name) {
     sym = make_symbol(name);
     printf("Made symbol %p\n", sym);
     symbols = cons(sym, symbols);
+    printf("Interned symbol %p\n", sym);
+    if (strcmp(name, "b") == 0) {
+      current_mark = 99;
+    }
   }
 
   return sym;
@@ -1093,7 +1115,7 @@ Object *eval(Object *obj, Object *env) {
 
   Object *result = s_nil;
 
-  //printf("Eval:\n");
+  printf("Eval:\n");
 
   switch (obj->type) {
     case STRING:
@@ -1188,8 +1210,8 @@ void print(Object *obj) {
       printf("<PROC>");
       break;
     default:
-      printf("\nPrint Unknown Object: %d\n", obj->type);
-      sleep(1);
+      printf("\nPrint Unknown Object - type? %d\n", obj->type);
+      //sleep(1);
       break;
   }
 }
@@ -1263,12 +1285,15 @@ void run_file_tests(char *fname) {
   Object *result = s_nil;
 
   while (result != NULL) {
-    printf("\n----\nREAD\n");
+    printf("\n----\nREAD from file\n");
     result = read_lisp(fp);
+    printf("After read (result):\n");
     print(result);
-    printf("\n----\nEVALUATE\n");
+    printf("\n----\nEVALUATE from file\n");
+    printf("Before eval:\n");
     print(result);
     result = eval(result, env);
+    printf("After eval (result):\n");
     print(result);
     printf("\n");
     //gc();
