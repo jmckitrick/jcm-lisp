@@ -27,9 +27,9 @@
 #define GC_SWEEP
 #define GC_DEBUG
 #define GC_DEBUG_X
-//#define GC_DEBUG_XX
+#define GC_DEBUG_XX
 #define GC_PIN
-//#define GC_PIN_DEBUG
+#define GC_PIN_DEBUG
 //#define GC_PIN_DEBUG_X
 
 //#define CODE_TEST
@@ -119,7 +119,7 @@ void error(char *msg) {
 
 #ifdef GC_PIN
 struct PinnedVariable {
-  Object *variable;
+  Object **variable;
   struct PinnedVariable *next;
   int inUse;
 };
@@ -144,7 +144,7 @@ void pin_variable(Object **obj) {
 
   struct PinnedVariable *pinned_var = calloc(1, sizeof(struct PinnedVariable));
   assert(pinned_var != NULL);
-  pinned_var->variable = *obj;
+  pinned_var->variable = obj;
 
   pinned_var->inUse = 1;
   pinned_var->next = pinned_variables;
@@ -179,16 +179,18 @@ void unpin_variable(Object **variable) {
   for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
     struct PinnedVariable *target = *v;
 
-    if (target->variable == *variable) {
+    if (target->variable == variable) {
 //    if (target->variable == *variable) {
 
 #ifdef GC_PIN_DEBUG
-      printf("Pinned variable found %p %d\n", target, variable->id);
+      printf("Pinned variable found %p %d\n", target, (*variable)->id);
       //printf("Pinned variable found %p\n", *target);
 
       printf("Containing: ");
-      print(target->variable);
-      //print((struct Object *)*target->variable);
+      print(*variable);
+      //print(target->variable);
+      //print((Object *)&target->variable);
+      //print((struct Object *)(*target)->variable);
       //print((struct Object *)target->variable);
       //print((struct Object **)target->variable);
       //print(((struct Object **)&(target->variable)));
@@ -208,6 +210,7 @@ void unpin_variable(Object **variable) {
       return;
     }
   }
+  printf("\nASSERT FAILED\n");
   assert(0);
 }
 #else
