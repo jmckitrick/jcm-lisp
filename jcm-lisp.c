@@ -28,8 +28,9 @@
 #define GC_DEBUG
 #define GC_DEBUG_X
 //#define GC_DEBUG_XX
-//#define GC_PIN
+#define GC_PIN
 //#define GC_PIN_DEBUG
+//#define GC_PIN_DEBUG_X
 
 //#define CODE_TEST
 #define FILE_TEST
@@ -134,7 +135,7 @@ void print_pins() {
   printf("Done.\n");
 }
 
-void pin_variable(Object *obj) {
+void pin_variable(Object **obj) {
 
 #ifdef GC_PIN_DEBUG
   printf("Pin\n");
@@ -143,33 +144,32 @@ void pin_variable(Object *obj) {
 
   struct PinnedVariable *pinned_var = calloc(1, sizeof(struct PinnedVariable));
   assert(pinned_var != NULL);
-  pinned_var->variable = obj;
-  //pinned_var->variableX = *obj;
+  pinned_var->variable = *obj;
 
   pinned_var->inUse = 1;
   pinned_var->next = pinned_variables;
 
-#ifdef GC_PIN_DEBUG
+#ifdef GC_PIN_DEBUG_X
   printf("Pinned variable         = %p\n", pinned_var);
   //printf("Pinned variable         = ");
   //print((struct Object *)pinned_var->variable);
   printf("Pinned variables before = %p\n", pinned_variables);
-#endif //GC_PIN_DEBUG
+#endif //GC_PIN_DEBUG_X
 
   pinned_variables = pinned_var;
 
-#ifdef GC_PIN_DEBUG
+#ifdef GC_PIN_DEBUG_X
   printf("Pinned variables after  = %p\n", pinned_variables);
-#endif //GC_PIN_DEBUG
+#endif //GC_PIN_DEBUG_X
 }
 #else
-void pin_variable(Object *obj) { // void
+void pin_variable(Object **obj) { // void
   printf("PIN\n");
 }
 #endif // GC_PIN
 
 #ifdef GC_PIN
-void unpin_variable(Object *variable) {
+void unpin_variable(Object **variable) {
 
 #ifdef GC_PIN_DEBUG
   printf("< obj %p\n", variable);
@@ -179,7 +179,7 @@ void unpin_variable(Object *variable) {
   for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
     struct PinnedVariable *target = *v;
 
-    if (target->variable == variable) {
+    if (target->variable == *variable) {
 //    if (target->variable == *variable) {
 
 #ifdef GC_PIN_DEBUG
@@ -212,6 +212,9 @@ void unpin_variable(Object *variable) {
 }
 #else
 void unpin_variable(Object *variable) { // void
+  printf("UNPIN %p\n", variable);
+  print(variable);
+  printf("\n");
   //printf("UNPIN %d\n", variable->id);
 }
 #endif // GC_PIN
@@ -535,8 +538,8 @@ void gc() {
   }
 */
   while (*pv != NULL) {
-    struct PinnedVariable *thisPV = *pv;
-    struct PinnedVariable thatPV = **pv;
+    /* struct PinnedVariable *thisPV = *pv; */
+    /* struct PinnedVariable thatPV = **pv; */
     /* Object *thisObj = *thisPV->variable; */
     /* Object *thatObj = *thatPV.variable; */
     /* Object *target = *(thisPV)->variable; */
@@ -627,85 +630,85 @@ Object *new_Object() {
 Object *make_cell() {
   Object *obj = NULL;
 
-  pin_variable(obj);
+  pin_variable(&obj);
   obj = new_Object();
   printf("cell\n");
 
   obj->type = CELL;
   obj->cell.car = s_nil;
   obj->cell.cdr = s_nil;
-  unpin_variable(obj);
+  unpin_variable(&obj);
   return obj;
 }
 
 Object *cons(Object *car, Object *cdr) {
   Object *obj = NULL;
 
-  pin_variable(obj);
+  pin_variable(&obj);
   obj = make_cell();
   printf("cons\n");
   obj->cell.car = car;
   obj->cell.cdr = cdr;
-  unpin_variable(obj);
+  unpin_variable(&obj);
   return obj;
 }
 
 Object *make_string(char *str) {
   Object *obj = NULL;
 
-  pin_variable(obj);
+  pin_variable(&obj);
   obj = new_Object();
   printf("string\n");
 
   obj->type = STRING;
   obj->str.text = strdup(str);
-  unpin_variable(obj);
+  unpin_variable(&obj);
   return obj;
 }
 
 Object *make_fixnum(int n) {
   Object *obj = NULL;
 
-  pin_variable(obj);
+  pin_variable(&obj);
   obj = new_Object();
   printf("fixnum\n");
 
   obj->type = FIXNUM;
   obj->num.value = n;
-  unpin_variable(obj);
+  unpin_variable(&obj);
   return obj;
 }
 
 Object *make_symbol(char *name) {
   Object *obj = NULL;
 
-  pin_variable(obj);
+  pin_variable(&obj);
   obj = new_Object();
   printf("symbol\n");
 
   obj->type = SYMBOL;
   obj->symbol.name = strdup(name);
-  unpin_variable(obj);
+  unpin_variable(&obj);
   return obj;
 }
 
 Object *make_primitive(primitive_fn *fn) {
   Object *obj = NULL;
 
-  pin_variable(obj);
+  pin_variable(&obj);
   obj = new_Object();
   printf("primitive\n");
 
   obj->type = PRIMITIVE;
   obj->primitive.fn = fn;
-  unpin_variable(obj);
+  unpin_variable(&obj);
   return obj;
 }
 
 Object *make_proc(Object *vars, Object *body, Object *env) {
   Object *obj = NULL;
 
-  pin_variable(obj);
+  pin_variable(&obj);
   obj = new_Object();
   printf("proc\n");
 
@@ -713,7 +716,7 @@ Object *make_proc(Object *vars, Object *body, Object *env) {
   obj->proc.vars = vars;
   obj->proc.body = body;
   obj->proc.env = env;
-  unpin_variable(obj);
+  unpin_variable(&obj);
   return obj;
 }
 
@@ -919,7 +922,7 @@ Object *read_lisp(FILE *in) {
   Object *obj = s_nil;
   char c;
 
-  pin_variable(obj);
+  pin_variable(&obj);
 
   skip_whitespace(in);
   c = getc(in);
@@ -950,7 +953,7 @@ Object *read_lisp(FILE *in) {
 #endif
   }
 
-  unpin_variable(obj);
+  unpin_variable(&obj);
 
   return obj;
 }
@@ -1347,7 +1350,7 @@ void run_file_tests(char *fname) {
   }
 
   Object *result = s_nil;
-  pin_variable(result);
+  pin_variable(&result);
 
   while (result != NULL) {
     printf("\n----\nREAD from file\n");
@@ -1364,7 +1367,7 @@ void run_file_tests(char *fname) {
     printf("\n");
     //gc();
   }
-  unpin_variable(result);
+  unpin_variable(&result);
 
   fclose(fp);
   printf("END FILE TESTS\n");
