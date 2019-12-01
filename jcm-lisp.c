@@ -17,15 +17,19 @@
 
 #define MAX_BUFFER_SIZE 100
 
-#define MAX_ALLOC_SIZE  256
+//#define MAX_ALLOC_SIZE  256
+//#define MAX_ALLOC_SIZE  128
+#define MAX_ALLOC_SIZE  96
+//#define MAX_ALLOC_SIZE  65
 
 #define GC_ENABLED
 #define GC_MARK
 #define GC_SWEEP
 #define GC_DEBUG
 #define GC_DEBUG_X
-#define GC_PIN
-#define GC_DEBUG_PIN
+//#define GC_DEBUG_XX
+//#define GC_PIN
+//#define GC_PIN_DEBUG
 
 //#define CODE_TEST
 #define FILE_TEST
@@ -114,52 +118,62 @@ void error(char *msg) {
 
 #ifdef GC_PIN
 struct PinnedVariable {
-  //Object *variable;
-  Object **variable;
+  Object *variable;
   struct PinnedVariable *next;
   int inUse;
 };
 
 struct PinnedVariable *pinned_variables;
 
-void pin_variable(Object **obj) {
+void print_pins() {
+  printf("\nPinned variables:\n");
+  struct PinnedVariable **v;
+  for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
+    printf("Pinned variable: %p %p\n", *v, (*v)->variable);
+  }
+  printf("Done.\n");
+}
 
-#ifdef GC_DEBUG_PIN
+void pin_variable(Object *obj) {
+
+#ifdef GC_PIN_DEBUG
   printf("Pin\n");
   printf("> obj %p\n", obj);
-#endif //GC_DEBUG_PIN
+#endif //GC_PIN_DEBUG
 
   struct PinnedVariable *pinned_var = calloc(1, sizeof(struct PinnedVariable));
   assert(pinned_var != NULL);
   pinned_var->variable = obj;
-  //pinned_var->variable = *obj;
+  //pinned_var->variableX = *obj;
 
   pinned_var->inUse = 1;
   pinned_var->next = pinned_variables;
 
-#ifdef GC_DEBUG_PIN
+#ifdef GC_PIN_DEBUG
   printf("Pinned variable         = %p\n", pinned_var);
   //printf("Pinned variable         = ");
   //print((struct Object *)pinned_var->variable);
   printf("Pinned variables before = %p\n", pinned_variables);
-#endif //GC_DEBUG_PIN
+#endif //GC_PIN_DEBUG
 
   pinned_variables = pinned_var;
 
-#ifdef GC_DEBUG_PIN
+#ifdef GC_PIN_DEBUG
   printf("Pinned variables after  = %p\n", pinned_variables);
-#endif //GC_DEBUG_PIN
+#endif //GC_PIN_DEBUG
 }
 #else
-void pin_variable(Object **obj) { }
+void pin_variable(Object *obj) { // void
+  printf("PIN\n");
+}
 #endif // GC_PIN
 
 #ifdef GC_PIN
-void unpin_variable(Object **variable) {
+void unpin_variable(Object *variable) {
 
-#ifdef GC_DEBUG_PIN
+#ifdef GC_PIN_DEBUG
   printf("< obj %p\n", variable);
-#endif //GC_DEBUG_PIN
+#endif //GC_PIN_DEBUG
 
   struct PinnedVariable **v;
   for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
@@ -168,25 +182,28 @@ void unpin_variable(Object **variable) {
     if (target->variable == variable) {
 //    if (target->variable == *variable) {
 
-#ifdef GC_DEBUG_PIN
-      printf("Pinned variable found %p %d\n", target, (*variable)->id);
+#ifdef GC_PIN_DEBUG
+      printf("Pinned variable found %p %d\n", target, variable->id);
       //printf("Pinned variable found %p\n", *target);
 
       printf("Containing: ");
-      print((struct Object *)*target->variable);
+      print(target->variable);
+      //print((struct Object *)*target->variable);
       //print((struct Object *)target->variable);
       //print((struct Object **)target->variable);
       //print(((struct Object **)&(target->variable)));
 
-      printf("\nIn use? %d\n", target->inUse);
+      if (target->inUse != 1) {
+        printf("\nIn use? %d\n", target->inUse);
+      }
 #endif
       target->inUse = 0;
       struct PinnedVariable *next = target->next;
       free(target);
       target = next;
-#ifdef GC_DEBUG_PIN
+#ifdef GC_PIN_DEBUG
       //printf("Pinned variable  head %p\n", *v);
-      printf("Unpin\n");
+      printf("\nUnpin\n");
 #endif
       return;
     }
@@ -194,7 +211,9 @@ void unpin_variable(Object **variable) {
   assert(0);
 }
 #else
-void unpin_variable(Object **variable) { }
+void unpin_variable(Object *variable) { // void
+  //printf("UNPIN %d\n", variable->id);
+}
 #endif // GC_PIN
 
 char *get_type(Object *obj) {
@@ -280,15 +299,15 @@ void mark(Object *obj) {
 #endif // GC_DEBUG
     return;
   }
-#ifdef GC_DEBUG
+#ifdef GC_DEBUG_XX
   Object *temp = obj; printf("\nMarking %p\n", temp);
-#endif // GC_DEBUG
+#endif // GC_DEBUG_XX
   if (obj->mark > 0) {
-#ifdef GC_DEBUG
+#ifdef GC_DEBUG_XX
     printf("Mark:\n");
     printf("\nNothing to mark: already marked\n");
     //print(obj);
-#endif // GC_DEBUG
+#endif // GC_DEBUG_XX
     return;
   }
 
@@ -307,47 +326,47 @@ void mark(Object *obj) {
     case STRING:
     case SYMBOL:
     case PRIMITIVE:
-#ifdef GC_DEBUG
+#ifdef GC_DEBUG_XX
       printf("\nMark %d %s ", obj->id, get_type(obj));
       print(obj);
-#endif // GC_DEBUG
+#endif // GC_DEBUG_XX
       break;
     case CELL:
-#ifdef GC_DEBUG
+#ifdef GC_DEBUG_XX
       printf("\nMark cell car %p -> %p", obj, obj->cell.car);
-#endif // GC_DEBUG
+#endif // GC_DEBUG_XX
       mark(obj->cell.car);
-#ifdef GC_DEBUG
+#ifdef GC_DEBUG_XX
       printf("\nMark cell car %p <-", obj);
 #endif // GC_DEBUG
-#ifdef GC_DEBUG
+#ifdef GC_DEBUG_XX
       printf("\nMark cell cdr %p -> %p", obj, obj->cell.cdr);
-#endif // GC_DEBUG
+#endif // GC_DEBUG_XX
       mark(obj->cell.cdr);
-#ifdef GC_DEBUG
+#ifdef GC_DEBUG_XX
       printf("\nMark cell cdr %p <-", obj);
-#endif // GC_DEBUG
+#endif // GC_DEBUG_XX
       break;
     case PROC:
-#ifdef GC_DEBUG
+#ifdef GC_DEBUG_XX
       printf("\nMark proc ->");
       //print(obj);
-#endif // GC_DEBUG
-#ifdef GC_DEBUG
+#endif // GC_DEBUG_XX
+#ifdef GC_DEBUG_XX
       printf("\nMark proc vars");
-#endif // GC_DEBUG
+#endif // GC_DEBUG_XX
       mark(obj->proc.vars);
-#ifdef GC_DEBUG
+#ifdef GC_DEBUG_XX
       printf("\nMark proc body");
-#endif // GC_DEBUG
+#endif // GC_DEBUG_XX
       mark(obj->proc.body);
-#ifdef GC_DEBUG
+#ifdef GC_DEBUG_XX
       printf("\nMark proc env");
-#endif // GC_DEBUG
+#endif // GC_DEBUG_XX
       mark(obj->proc.env);
 #ifdef GC_DEBUG
       printf("\nMark proc <-");
-#endif // GC_DEBUG
+#endif // GC_DEBUG_XX
       break;
     default:
       printf("\nMark unknown object: %d\n", obj->type);
@@ -408,7 +427,7 @@ void sweep() {
       swept++;
 
     } else {
-#ifdef GC_DEBUG
+#ifdef GC_DEBUG_XX
       /* printf("Mark it ZERO! %d ", obj->mark); */
       printf("Do NOT sweep: %p %d ", obj, obj->id);
 
@@ -435,7 +454,7 @@ void sweep() {
       if (!is_active(obj)) {
         error("NOT found in active list!\n");
       }
-#endif // GC_DEBUG
+#endif // GC_DEBUG_XX
       obj->mark = 0;
       kept++;
     }
@@ -443,7 +462,7 @@ void sweep() {
     counted++;
   }
 #ifdef GC_DEBUG
-  printf("Done sweep: %d kept %d swept %d counted\n\n", kept, swept, counted);
+  printf("Done sweep.  kept: %d swept: %d counted: %d\n\n", kept, swept, counted);
   printf("%d are cells\n", cells);
 #endif // GC_DEBUG
 }
@@ -504,12 +523,36 @@ void gc() {
   struct PinnedVariable **pv = &pinned_variables;
   printf("pinned_variables = %p\n", pinned_variables);
   printf("pinned_variables address = %p\n", pv);
-  while (*pv != NULL &&
-         ((struct Object *)(*pv)->variable)->type != UNKNOWN) {
-    printf("pinned_variable  = %p\n", *pv);
-    print((struct Object *)(*pv)->variable);
-    printf("pinned_variable id = %d\n", ((struct Object *)(*pv)->variable)->id);
-    ((struct Object *)(*pv)->variable)->mark = current_mark;
+/*
+  struct PinnedVariable **v;
+  for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
+    struct PinnedVariable *target = *v;
+
+    if (target->variable != NULL) {
+      printf("Containing: ");
+      print((struct Object *)*target->variable);
+    }
+  }
+*/
+  while (*pv != NULL) {
+    struct PinnedVariable *thisPV = *pv;
+    struct PinnedVariable thatPV = **pv;
+    /* Object *thisObj = *thisPV->variable; */
+    /* Object *thatObj = *thatPV.variable; */
+    /* Object *target = *(thisPV)->variable; */
+    struct Object *target = (struct Object *)(**pv).variable;
+    printf("Target type: %d\n", target->type);
+    if (((struct Object *)(*pv)->variable)->type != UNKNOWN) {
+      printf("pinned_variable  = %p\n", *pv);
+      print((struct Object *)(*pv)->variable);
+      printf("pinned_variable id = %d\n", ((struct Object *)(*pv)->variable)->id);
+      ((struct Object *)(*pv)->variable)->mark = current_mark;
+
+    } else {
+      break;
+    }
+
+    //pv = &(**pv).next;
     pv = &(*pv)->next;
   }
 #endif // GC_PIN
@@ -546,6 +589,7 @@ Object *alloc_Object() {
   Object *obj = find_next_free();
 
   if (obj == NULL) {
+    //print_pins();
     gc();
 
     obj = find_next_free();
@@ -557,7 +601,8 @@ Object *alloc_Object() {
   }
 
 #ifdef GC_DEBUG_X
-  printf("Allocated %d\n", obj->id);
+  //printf("Allocated %d\n", obj->id);
+  printf("Allocated %d ", obj->id);
 #endif
 
   return obj;
@@ -573,90 +618,102 @@ Object *new_Object() {
   obj->type = UNKNOWN;
   obj->mark = 0;
 
-#ifdef GC_DEBUG_PIN
+#ifdef GC_PIN_DEBUG
   printf("Allocated object %p\n", obj);
 #endif
   return obj;
 }
 
 Object *make_cell() {
-  Object *obj;
+  Object *obj = NULL;
 
-  pin_variable(&obj);
+  pin_variable(obj);
   obj = new_Object();
+  printf("cell\n");
 
   obj->type = CELL;
   obj->cell.car = s_nil;
   obj->cell.cdr = s_nil;
-  unpin_variable(&obj);
+  unpin_variable(obj);
   return obj;
 }
 
 Object *cons(Object *car, Object *cdr) {
-  Object *obj;
+  Object *obj = NULL;
 
-  pin_variable(&obj);
+  pin_variable(obj);
   obj = make_cell();
+  printf("cons\n");
   obj->cell.car = car;
   obj->cell.cdr = cdr;
-  unpin_variable(&obj);
+  unpin_variable(obj);
   return obj;
 }
 
 Object *make_string(char *str) {
-  Object *obj;
+  Object *obj = NULL;
 
-  pin_variable(&obj);
+  pin_variable(obj);
   obj = new_Object();
+  printf("string\n");
+
   obj->type = STRING;
   obj->str.text = strdup(str);
-  unpin_variable(&obj);
+  unpin_variable(obj);
   return obj;
 }
 
 Object *make_fixnum(int n) {
-  Object *obj;
+  Object *obj = NULL;
 
-  pin_variable(&obj);
+  pin_variable(obj);
   obj = new_Object();
+  printf("fixnum\n");
+
   obj->type = FIXNUM;
   obj->num.value = n;
-  unpin_variable(&obj);
+  unpin_variable(obj);
   return obj;
 }
 
 Object *make_symbol(char *name) {
-  Object *obj;
+  Object *obj = NULL;
 
-  pin_variable(&obj);
+  pin_variable(obj);
   obj = new_Object();
+  printf("symbol\n");
+
   obj->type = SYMBOL;
   obj->symbol.name = strdup(name);
-  unpin_variable(&obj);
+  unpin_variable(obj);
   return obj;
 }
 
 Object *make_primitive(primitive_fn *fn) {
-  Object *obj;
+  Object *obj = NULL;
 
-  pin_variable(&obj);
+  pin_variable(obj);
   obj = new_Object();
+  printf("primitive\n");
+
   obj->type = PRIMITIVE;
   obj->primitive.fn = fn;
-  unpin_variable(&obj);
+  unpin_variable(obj);
   return obj;
 }
 
 Object *make_proc(Object *vars, Object *body, Object *env) {
-  Object *obj;
+  Object *obj = NULL;
 
-  pin_variable(&obj);
+  pin_variable(obj);
   obj = new_Object();
+  printf("proc\n");
+
   obj->type = PROC;
   obj->proc.vars = vars;
   obj->proc.body = body;
   obj->proc.env = env;
-  unpin_variable(&obj);
+  unpin_variable(obj);
   return obj;
 }
 
@@ -667,20 +724,20 @@ Object *lookup_symbol(char *name) {
   Object *cell = symbols;
   Object *sym;
 
-#ifdef GC_DEBUG_X
+#ifdef GC_DEBUG_XX
   printf("Symbol for lookup %s\n", name);
 #endif
 
   while (cell != s_nil) {
     sym = car(cell);
 
-#ifdef GC_DEBUG_X
+#ifdef GC_DEBUG_XX
     printf("Symbol for lookup comparison? %d %s\n", is_symbol(sym), sym->symbol.name);
 #endif
 
     if (is_symbol(sym) &&
         strcmp(sym->symbol.name, name) == 0) {
-#ifdef GC_DEBUG_X
+#ifdef GC_DEBUG_XX
       printf("Symbol lookup succeeded\n");
       printf("Symbol address %p\n", sym);
 #endif
@@ -708,9 +765,10 @@ Object *intern_symbol(char *name) {
     printf("Made symbol %p\n", sym);
     symbols = cons(sym, symbols);
     printf("Interned symbol %p\n", sym);
-    if (strcmp(name, "b") == 0) {
-      current_mark = 99;
-    }
+  }
+
+  if (strcmp(name, "b") == 0) {
+    current_mark = 99;
   }
 
   return sym;
@@ -720,7 +778,7 @@ Object *intern_symbol(char *name) {
 Object *assoc(Object *key, Object *list) {
   if (list != s_nil) {
     Object *pair = car(list);
-    //printf("Assoc:\n");
+    printf("Assoc:\n");
     print(pair);
     //printf("\nAssoc check '%s' vs '%s'\n", car(pair)->symbol.name, car(key)->symbol.name);
     //printf("\nAssoc check %p vs %p\n", car(pair), key);
@@ -861,6 +919,8 @@ Object *read_lisp(FILE *in) {
   Object *obj = s_nil;
   char c;
 
+  pin_variable(obj);
+
   skip_whitespace(in);
   c = getc(in);
 
@@ -889,6 +949,8 @@ Object *read_lisp(FILE *in) {
     return NULL;
 #endif
   }
+
+  unpin_variable(obj);
 
   return obj;
 }
@@ -1038,7 +1100,7 @@ Object *eval_list(Object *obj, Object *env) {
   if (obj == s_nil)
     return obj;
 
-  //printf("Eval list\n");
+  printf("Eval list\n");
 
   if (car(obj) == s_define) {
     Object *cell = obj; // car(cell) should be symbol named define
@@ -1116,13 +1178,14 @@ Object *eval(Object *obj, Object *env) {
 
   Object *result = s_nil;
 
-  printf("Eval:\n");
+  printf("Eval: ");
 
   switch (obj->type) {
     case STRING:
     case FIXNUM:
     case PRIMITIVE:
     case PROC:
+      printf("\nEval: %d\n", obj->type);
       result = obj;
       break;
     case SYMBOL:
@@ -1268,7 +1331,7 @@ void init() {
     free_list[i] = obj;
   }
 
-#ifdef GC_DEBUG_PIN
+#ifdef GC_PIN_DEBUG
   printf("Done init.\n");
 #endif
 }
@@ -1284,6 +1347,7 @@ void run_file_tests(char *fname) {
   }
 
   Object *result = s_nil;
+  pin_variable(result);
 
   while (result != NULL) {
     printf("\n----\nREAD from file\n");
@@ -1293,12 +1357,14 @@ void run_file_tests(char *fname) {
     printf("\n----\nEVALUATE from file\n");
     printf("Before eval:\n");
     print(result);
+    printf("\n");
     result = eval(result, env);
     printf("After eval (result):\n");
     print(result);
     printf("\n");
     //gc();
   }
+  unpin_variable(result);
 
   fclose(fp);
   printf("END FILE TESTS\n");
@@ -1344,13 +1410,22 @@ int main(int argc, char* argv[]) {
   extend_env(env, intern_symbol("/"), make_primitive(primitive_div));
 
 #ifdef CODE_TEST
+  gc();
 #endif
 
 #ifdef FILE_TEST
-  run_file_tests("./test1.lsp");
-  run_file_tests("./test2.lsp");
-  run_file_tests("./test3.lsp");
+  /* run_file_tests("./test1.lsp"); */
+  /* run_file_tests("./test2.lsp"); */
+  /* run_file_tests("./testX.lsp"); */
+  /* run_file_tests("./test3.lsp"); */
   /* run_file_tests("./test4.lsp"); */
+  /* run_file_tests("./test5.lsp"); */
+  /* run_file_tests("./test6.lsp"); */
+//  run_file_tests("./testU.lsp");
+//  run_file_tests("./testV.lsp");
+  run_file_tests("./testW.lsp");
+//  run_file_tests("./testY.lsp"); // <--
+//  run_file_tests("./testZ.lsp");
 #endif
 
 #ifdef REPL
