@@ -27,7 +27,7 @@
 #define GC_SWEEP
 #define GC_DEBUG
 #define GC_DEBUG_X
-#define GC_DEBUG_XX
+//#define GC_DEBUG_XX
 #define GC_PIN
 #define GC_PIN_DEBUG
 //#define GC_PIN_DEBUG_X
@@ -149,6 +149,11 @@ void pin_variable(Object **obj) {
   pinned_var->inUse = 1;
   pinned_var->next = pinned_variables;
 
+  if (*obj != NULL) {
+    printf("Pinned variable found %p %p %d\n", obj, *obj, (*obj)->id);
+    print(*obj);
+  }
+
 #ifdef GC_PIN_DEBUG_X
   printf("Pinned variable         = %p\n", pinned_var);
   //printf("Pinned variable         = ");
@@ -169,25 +174,25 @@ void pin_variable(Object **obj) { // void
 #endif // GC_PIN
 
 #ifdef GC_PIN
-void unpin_variable(Object **variable) {
+void unpin_variable(Object **obj) {
 
 #ifdef GC_PIN_DEBUG
-  printf("< obj %p\n", variable);
+  printf("< obj %p\n", obj);
 #endif //GC_PIN_DEBUG
 
   struct PinnedVariable **v;
-  for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
-    struct PinnedVariable *target = *v;
+  int i = 1;
+  for (v = &pinned_variables; *v != NULL; v = &(*v)->next, i++) {
+    //struct PinnedVariable *target = *v;
 
-    if (target->variable == variable) {
-//    if (target->variable == *variable) {
+    if ((*v)->variable == obj) {
 
 #ifdef GC_PIN_DEBUG
-      printf("Pinned variable found %p %d\n", target, (*variable)->id);
+      printf("Pinned variable found (out of %d) %p %p %d\n", i, obj, *obj, (*obj)->id);
       //printf("Pinned variable found %p\n", *target);
 
       printf("Containing: ");
-      print(*variable);
+      print(*obj);
       //print(target->variable);
       //print((Object *)&target->variable);
       //print((struct Object *)(*target)->variable);
@@ -195,14 +200,15 @@ void unpin_variable(Object **variable) {
       //print((struct Object **)target->variable);
       //print(((struct Object **)&(target->variable)));
 
-      if (target->inUse != 1) {
-        printf("\nIn use? %d\n", target->inUse);
+      if ((*v)->inUse != 1) {
+        printf("\nIn use? %d\n", (*v)->inUse);
       }
 #endif
-      target->inUse = 0;
-      struct PinnedVariable *next = target->next;
-      free(target);
-      target = next;
+      (*v)->inUse = 0;
+      struct PinnedVariable *next = (*v)->next;
+      (*v)->next = NULL;
+      free((*v));
+      (*v) = next;
 #ifdef GC_PIN_DEBUG
       //printf("Pinned variable  head %p\n", *v);
       printf("\nUnpin\n");
@@ -214,11 +220,11 @@ void unpin_variable(Object **variable) {
   assert(0);
 }
 #else
-void unpin_variable(Object *variable) { // void
-  printf("UNPIN %p\n", variable);
-  print(variable);
+void unpin_variable(Object **obj) { // void
+  printf("UNPIN %p\n", obj);
+  print(obj);
   printf("\n");
-  //printf("UNPIN %d\n", variable->id);
+  //printf("UNPIN %d\n", obj->id);
 }
 #endif // GC_PIN
 
@@ -529,38 +535,40 @@ void gc() {
   struct PinnedVariable **pv = &pinned_variables;
   printf("pinned_variables = %p\n", pinned_variables);
   printf("pinned_variables address = %p\n", pv);
-/*
+
   struct PinnedVariable **v;
   for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
-    struct PinnedVariable *target = *v;
+    //struct PinnedVariable *target = *v;
+    Object *obj = NULL;
 
-    if (target->variable != NULL) {
-      printf("Containing: ");
-      print((struct Object *)*target->variable);
+    if ((*v)->variable != NULL) {
+      //printf("Object %d Containing: ", **target->variable.id);
+      print((struct Object *)*(*v)->variable);
+      obj = *(*v)->variable;
     }
   }
-*/
-  while (*pv != NULL) {
-    /* struct PinnedVariable *thisPV = *pv; */
-    /* struct PinnedVariable thatPV = **pv; */
-    /* Object *thisObj = *thisPV->variable; */
-    /* Object *thatObj = *thatPV.variable; */
-    /* Object *target = *(thisPV)->variable; */
-    struct Object *target = (struct Object *)(**pv).variable;
-    printf("Target type: %d\n", target->type);
-    if (((struct Object *)(*pv)->variable)->type != UNKNOWN) {
-      printf("pinned_variable  = %p\n", *pv);
-      print((struct Object *)(*pv)->variable);
-      printf("pinned_variable id = %d\n", ((struct Object *)(*pv)->variable)->id);
-      ((struct Object *)(*pv)->variable)->mark = current_mark;
 
-    } else {
-      break;
-    }
+  /* while (*pv != NULL) { */
+  /*   /\* struct PinnedVariable *thisPV = *pv; *\/ */
+  /*   /\* struct PinnedVariable thatPV = **pv; *\/ */
+  /*   /\* Object *thisObj = *thisPV->variable; *\/ */
+  /*   /\* Object *thatObj = *thatPV.variable; *\/ */
+  /*   /\* Object *target = *(thisPV)->variable; *\/ */
+  /*   struct Object *target = (struct Object *)(**pv).variable; */
+  /*   printf("Target type: %d\n", target->type); */
+  /*   if (((struct Object *)(*pv)->variable)->type != UNKNOWN) { */
+  /*     printf("pinned_variable  = %p\n", *pv); */
+  /*     print((struct Object *)(*pv)->variable); */
+  /*     printf("pinned_variable id = %d\n", ((struct Object *)(*pv)->variable)->id); */
+  /*     ((struct Object *)(*pv)->variable)->mark = current_mark; */
 
-    //pv = &(**pv).next;
-    pv = &(*pv)->next;
-  }
+  /*   } else { */
+  /*     break; */
+  /*   } */
+
+  /*   //pv = &(**pv).next; */
+  /*   pv = &(*pv)->next; */
+  /* } */
 #endif // GC_PIN
 #endif // GC_MARK
 
@@ -1343,6 +1351,7 @@ void init() {
 }
 
 void run_file_tests(char *fname) {
+  printf("\n----------------------------------------\n");
   printf("\n\nBEGIN FILE TESTS: %s\n", fname);
 
   FILE *fp = fopen(fname, "r");
