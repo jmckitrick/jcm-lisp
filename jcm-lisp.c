@@ -30,7 +30,7 @@
 //#define GC_DEBUG_XX
 #define GC_PIN
 #define GC_PIN_DEBUG
-//#define GC_PIN_DEBUG_X
+#define GC_PIN_DEBUG_X
 
 //#define CODE_TEST
 #define FILE_TEST
@@ -44,7 +44,8 @@ typedef enum {
   SYMBOL = 4,
   CELL = 5,
   PRIMITIVE = 6,
-  PROC = 7
+  PROC = 7,
+  DEBUG = 8
 } obj_type;
 
 typedef struct Object Object;
@@ -110,6 +111,8 @@ Object *free_list[MAX_ALLOC_SIZE];
 Object *active_list[MAX_ALLOC_SIZE];
 Object *env;
 
+static Object objDebug;
+
 int current_mark;
 
 void error(char *msg) {
@@ -152,6 +155,7 @@ void pin_variable(Object **obj) {
   if (*obj != NULL) {
     printf("Pinned variable found %p %p %d\n", obj, *obj, (*obj)->id);
     print(*obj);
+    printf("\n");
   }
 
 #ifdef GC_PIN_DEBUG_X
@@ -193,6 +197,7 @@ void unpin_variable(Object **obj) {
 
       printf("Containing: ");
       print(*obj);
+      printf("\n");
       //print(target->variable);
       //print((Object *)&target->variable);
       //print((struct Object *)(*target)->variable);
@@ -210,8 +215,9 @@ void unpin_variable(Object **obj) {
       free((*v));
       (*v) = next;
 #ifdef GC_PIN_DEBUG
-      //printf("Pinned variable  head %p\n", *v);
-      printf("\nUnpin\n");
+      printf("Pinned variable  head %p\n", *v);
+      //printf("Pinned variables = %p\n", pinned_variables);
+      printf("Unpin\n");
 #endif
       return;
     }
@@ -243,6 +249,8 @@ char *get_type(Object *obj) {
     return "PRIM";
   else if (obj->type == PROC)
     return "PROC";
+  else if (obj->type == DEBUG)
+    return "DEBUG";
   else
     return "UNKNOWN";
 }
@@ -532,21 +540,41 @@ void gc() {
 
 #ifdef GC_PIN
   printf("\n-------- Mark pins:\n");
-  struct PinnedVariable **pv = &pinned_variables;
+  struct PinnedVariable *pv = pinned_variables;
   printf("pinned_variables = %p\n", pinned_variables);
   printf("pinned_variables address = %p\n", pv);
 
   struct PinnedVariable **v;
-  for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
+  int count = 0;
+  for (v = &pinned_variables; *v != NULL; v = &(*v)->next, count++) {
+    Object *obj = NULL;
+
+    if ((*v)->variable != NULL) {
+      //printf("Object %d Containing: ", **v->variable.id);
+      //print((struct Object *)(*v)->variable);
+      obj = *(**v).variable;
+      print(obj);
+      //*obj = (**v).variable;
+      obj->mark = current_mark;
+    }
+  }
+/*
+  struct PinnedVariable **v;
+  int count = 0;
+  for (v = &pinned_variables; *v != NULL; v = &(*v)->next, count++) {
     //struct PinnedVariable *target = *v;
     Object *obj = NULL;
 
     if ((*v)->variable != NULL) {
-      //printf("Object %d Containing: ", **target->variable.id);
+      //printf("Object %d Containing: ", **v->variable.id);
       print((struct Object *)*(*v)->variable);
-      obj = *(*v)->variable;
+      obj = *(**v).variable;
+      //obj = *(*v)->variable;
+      obj->mark = current_mark;
     }
   }
+*/
+  printf("Pins counted: %d\n", count);
 
   /* while (*pv != NULL) { */
   /*   /\* struct PinnedVariable *thisPV = *pv; *\/ */
@@ -639,7 +667,7 @@ Object *new_Object() {
 }
 
 Object *make_cell() {
-  Object *obj = NULL;
+  Object *obj = &objDebug;
 
   pin_variable(&obj);
   obj = new_Object();
@@ -653,7 +681,7 @@ Object *make_cell() {
 }
 
 Object *cons(Object *car, Object *cdr) {
-  Object *obj = NULL;
+  Object *obj = &objDebug;
 
   pin_variable(&obj);
   obj = make_cell();
@@ -665,7 +693,7 @@ Object *cons(Object *car, Object *cdr) {
 }
 
 Object *make_string(char *str) {
-  Object *obj = NULL;
+  Object *obj = &objDebug;
 
   pin_variable(&obj);
   obj = new_Object();
@@ -678,7 +706,7 @@ Object *make_string(char *str) {
 }
 
 Object *make_fixnum(int n) {
-  Object *obj = NULL;
+  Object *obj = &objDebug;
 
   pin_variable(&obj);
   obj = new_Object();
@@ -691,7 +719,7 @@ Object *make_fixnum(int n) {
 }
 
 Object *make_symbol(char *name) {
-  Object *obj = NULL;
+  Object *obj = &objDebug;
 
   pin_variable(&obj);
   obj = new_Object();
@@ -704,7 +732,7 @@ Object *make_symbol(char *name) {
 }
 
 Object *make_primitive(primitive_fn *fn) {
-  Object *obj = NULL;
+  Object *obj = &objDebug;
 
   pin_variable(&obj);
   obj = new_Object();
@@ -717,7 +745,7 @@ Object *make_primitive(primitive_fn *fn) {
 }
 
 Object *make_proc(Object *vars, Object *body, Object *env) {
-  Object *obj = NULL;
+  Object *obj = &objDebug;
 
   pin_variable(&obj);
   obj = new_Object();
@@ -1287,6 +1315,9 @@ void print(Object *obj) {
     case PROC:
       printf("<PROC>");
       break;
+    case DEBUG:
+      printf("DEBUG");
+      break;
     default:
       printf("\nPrint Unknown Object - type? %d\n", obj->type);
       //sleep(1);
@@ -1344,6 +1375,9 @@ void init() {
     obj->type = UNKNOWN;
     free_list[i] = obj;
   }
+
+  objDebug.type = DEBUG;
+  objDebug.num.value = 88;
 
 #ifdef GC_PIN_DEBUG
   printf("Done init.\n");
