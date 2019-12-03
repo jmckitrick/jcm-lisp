@@ -153,7 +153,7 @@ void pin_variable(Object **obj) {
   pinned_var->next = pinned_variables;
 
   if (*obj != NULL) {
-    printf("Pinned variable found %p %p %d\n", obj, *obj, (*obj)->id);
+    printf("Variable pinned: %p %p %d\n", obj, *obj, (*obj)->id);
     print(*obj);
     printf("\n");
   }
@@ -553,7 +553,9 @@ void gc() {
       //printf("Object %d Containing: ", **v->variable.id);
       //print((struct Object *)(*v)->variable);
       obj = *(**v).variable;
+      printf("Pointer %p Object %p %d: ", *v, obj, count);
       print(obj);
+      printf("\n");
       //*obj = (**v).variable;
       obj->mark = current_mark;
     }
