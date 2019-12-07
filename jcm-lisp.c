@@ -19,8 +19,8 @@
 
 //#define MAX_ALLOC_SIZE  256
 //#define MAX_ALLOC_SIZE  128
-#define MAX_ALLOC_SIZE  96
-//#define MAX_ALLOC_SIZE  65
+//#define MAX_ALLOC_SIZE  96
+#define MAX_ALLOC_SIZE  65
 
 #define GC_ENABLED
 #define GC_MARK
@@ -1429,8 +1429,8 @@ int main(int argc, char* argv[]) {
   /* run_file_tests("./test4.lsp"); */
   /* run_file_tests("./test5.lsp"); */
   /* run_file_tests("./test6.lsp"); */
-  run_file_tests("./testT.lsp");
-  /* run_file_tests("./testU.lsp"); */
+  /* run_file_tests("./testT.lsp"); */
+  run_file_tests("./testU.lsp");
   /* run_file_tests("./testV.lsp"); */
   /* run_file_tests("./testW.lsp"); */
   /* run_file_tests("./testX.lsp"); */
