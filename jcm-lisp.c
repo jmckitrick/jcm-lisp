@@ -27,10 +27,10 @@
 #define GC_SWEEP
 #define GC_DEBUG
 #define GC_DEBUG_X
-//#define GC_DEBUG_XX
+#define GC_DEBUG_XX
 #define GC_PIN
 #define GC_PIN_DEBUG
-//#define GC_PIN_DEBUG_X
+#define GC_PIN_DEBUG_X
 
 //#define CODE_TEST
 #define FILE_TEST
@@ -80,14 +80,14 @@ struct Proc {
 struct Object {
   obj_type type;
 
-//  union {
+  union {
     struct Fixnum num;
     struct String str;
     struct Symbol symbol;
     struct Cell cell;
     struct Primitive primitive;
     struct Proc proc;
-//  };
+  };
 
   int mark;
   int id;
@@ -197,7 +197,7 @@ void unpin_variable(Object **obj) {
         printf("\nIn use? %d\n", (*v)->inUse);
       }
 #endif
-      //(*v)->inUse = 0;
+      (*v)->inUse = 0;
       struct PinnedVariable *next = (*v)->next;
       free((*v));
       (*v) = next;
@@ -527,42 +527,14 @@ void gc() {
   v = &pinned_variables;
   printf("pinned_variables = %p\n", pinned_variables);
   printf("pinned_variables address = %p\n", v);
-/*
-  struct PinnedVariable **v;
-  for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
-    struct PinnedVariable *target = *v;
 
-    if (target->variable != NULL) {
-      printf("Containing: ");
-      print((struct Object *)*target->variable);
-    }
-  }
-*/
   while (*v != NULL) {
-    /* struct PinnedVariable *thisPV = *pv; */
-    /* struct PinnedVariable thatPV = **pv; */
-    /* Object *thisObj = *thisPV->variable; */
-    /* Object *thatObj = *thatPV.variable; */
-    /* Object *target = *(thisPV)->variable; */
-    /* struct Object *target = (struct Object *)(**v).variable; */
-    /* printf("Target type: %d\n", target->type); */
-    /* if (((struct Object *)(*v)->variable)->type != UNKNOWN) { */
-    /*   printf("pinned_variable  = %p\n", *v); */
-    /*   print((struct Object *)(*v)->variable); */
-    /*   printf("pinned_variable id = %d\n", ((struct Object *)(*v)->variable)->id); */
-    /*   ((struct Object *)(*v)->variable)->mark = current_mark; */
-
-    /* } else { */
-    /*   break; */
-    /* } */
     printf("Checking pinned variable: %p\n", *(*v)->variable);
     print((Object *)(*(**v).variable));
     print((Object *)(*(*v)->variable));
-    //print((*v)->variable);
     print(*(*v)->variable);
     ((Object *)((*v)->variable))->mark = current_mark;
 
-    //v = &(**v).next;
     v = &(*v)->next;
   }
 #endif // GC_PIN
@@ -1453,14 +1425,15 @@ int main(int argc, char* argv[]) {
 #ifdef FILE_TEST
   /* run_file_tests("./test1.lsp"); */
   /* run_file_tests("./test2.lsp"); */
-  /* run_file_tests("./testX.lsp"); */
   /* run_file_tests("./test3.lsp"); */
   /* run_file_tests("./test4.lsp"); */
   /* run_file_tests("./test5.lsp"); */
   /* run_file_tests("./test6.lsp"); */
-//  run_file_tests("./testU.lsp");
-//  run_file_tests("./testV.lsp");
-  run_file_tests("./testW.lsp");
+  run_file_tests("./testT.lsp");
+  /* run_file_tests("./testU.lsp"); */
+  /* run_file_tests("./testV.lsp"); */
+  /* run_file_tests("./testW.lsp"); */
+  /* run_file_tests("./testX.lsp"); */
 //  run_file_tests("./testY.lsp"); // <--
 //  run_file_tests("./testZ.lsp");
 #endif
