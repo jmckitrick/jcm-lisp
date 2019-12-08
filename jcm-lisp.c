@@ -27,10 +27,10 @@
 #define GC_SWEEP
 #define GC_DEBUG
 #define GC_DEBUG_X
-#define GC_DEBUG_XX
+//#define GC_DEBUG_XX
 #define GC_PIN
 #define GC_PIN_DEBUG
-#define GC_PIN_DEBUG_X
+//#define GC_PIN_DEBUG_X
 
 //#define CODE_TEST
 #define FILE_TEST
@@ -307,7 +307,7 @@ void mark(Object *obj) {
 #endif // GC_DEBUG_XX
   if (obj->mark > 0) {
 #ifdef GC_DEBUG_XX
-    printf("Mark:\n");
+    //printf("Mark:\n");
     printf("\nNothing to mark: already marked\n");
     //print(obj);
 #endif // GC_DEBUG_XX
@@ -525,17 +525,20 @@ void gc() {
   printf("\n-------- Mark pins:\n");
   struct PinnedVariable **v = NULL;
   v = &pinned_variables;
-  printf("pinned_variables = %p\n", pinned_variables);
-  printf("pinned_variables address = %p\n", v);
 
-  while (*v != NULL) {
-    printf("Checking pinned variable: %p\n", *(*v)->variable);
+  for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
+    if ((*v)->inUse != 1) {
+      printf("\nIn use? %d\n", (*v)->inUse);
+      continue;
+    }
+
+    printf("Checking pinned variable: %p (%p %p %p)\n", *(*v)->variable, (*v)->variable, *v, v);
+
     print((Object *)(*(**v).variable));
     print((Object *)(*(*v)->variable));
     print(*(*v)->variable);
-    ((Object *)((*v)->variable))->mark = current_mark;
 
-    v = &(*v)->next;
+    ((Object *)((*v)->variable))->mark = current_mark;
   }
 #endif // GC_PIN
 #endif // GC_MARK
