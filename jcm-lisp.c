@@ -20,17 +20,18 @@
 //#define MAX_ALLOC_SIZE  256
 //#define MAX_ALLOC_SIZE  128
 //#define MAX_ALLOC_SIZE  96
-#define MAX_ALLOC_SIZE  65
+//#define MAX_ALLOC_SIZE  65
+#define MAX_ALLOC_SIZE  15
 
 #define GC_ENABLED
 #define GC_MARK
 #define GC_SWEEP
 #define GC_DEBUG
 #define GC_DEBUG_X
-//#define GC_DEBUG_XX
+#define GC_DEBUG_XX
 #define GC_PIN
 #define GC_PIN_DEBUG
-//#define GC_PIN_DEBUG_X
+#define GC_PIN_DEBUG_X
 
 //#define CODE_TEST
 #define FILE_TEST
@@ -124,7 +125,7 @@ struct PinnedVariable {
   int inUse;
 };
 
-struct PinnedVariable *pinned_variables;
+struct PinnedVariable *pinned_variables; int pinned_variable_count = 0;
 
 void print_pins() {
   printf("\nPinned variables:\n");
@@ -157,11 +158,12 @@ void pin_variable(Object **obj) {
   printf("Pinned variables before = %p\n", pinned_variables);
 #endif //GC_PIN_DEBUG_X
 
-  pinned_variables = pinned_var;
+  pinned_variables = pinned_var; pinned_variable_count++;
 
 #ifdef GC_PIN_DEBUG_X
   printf("Pinned variables after  = %p\n", pinned_variables);
 #endif //GC_PIN_DEBUG_X
+  printf("Pinned variable count %d\n", pinned_variable_count);
 }
 #else
 void pin_variable(Object **obj) { // void
@@ -186,8 +188,9 @@ void unpin_variable(Object **obj) {
       //printf("Pinned variable found %p %d\n", target, *(Object *)obj->id);
       //printf("Pinned variable found %p\n", *target);
 
-      printf("Containing: ");
-      print(*(*v)->variable);
+      //printf("Containing: ");
+      //print(*(*v)->variable);
+
       //print((struct Object *)*target->variable);
       //print((struct Object *)target->variable);
       //print((struct Object **)target->variable);
@@ -197,14 +200,15 @@ void unpin_variable(Object **obj) {
         printf("\nIn use? %d\n", (*v)->inUse);
       }
 #endif
-      (*v)->inUse = 0;
       struct PinnedVariable *next = (*v)->next;
-      free((*v));
-      (*v) = next;
+      (*v)->inUse = 0;
+      free(*v);
+      pinned_variables = next; pinned_variable_count--;
 #ifdef GC_PIN_DEBUG
       //printf("Pinned variable  head %p\n", *v);
       printf("\nUnpin\n");
 #endif
+      printf("Pinned variable count %d\n", pinned_variable_count);
       return;
     }
   }
@@ -402,7 +406,7 @@ void sweep() {
 
     if (obj->mark == 0) {
       //printf("obj->mark: %d\n", obj->mark);
-      printf("SWEEP: %p %d ", obj, obj->id);
+      printf("\nSWEEP: %p id: %d mark: %d ", obj, obj->id, obj->mark);
       print(obj);
 
       // Free any additional allocated memory.
@@ -432,7 +436,7 @@ void sweep() {
     } else {
 #ifdef GC_DEBUG_XX
       /* printf("Mark it ZERO! %d ", obj->mark); */
-      printf("Do NOT sweep: %p %d ", obj, obj->id);
+      printf("\nDo NOT sweep: %p id: %d mark: %d ", obj, obj->id, obj->mark);
 
       print(obj);
       switch (obj->type) {
@@ -465,7 +469,7 @@ void sweep() {
     counted++;
   }
 #ifdef GC_DEBUG
-  printf("Done sweep.  kept: %d swept: %d counted: %d\n\n", kept, swept, counted);
+  printf("\nDone sweep.  kept: %d swept: %d counted: %d\n\n", kept, swept, counted);
   printf("%d are cells\n", cells);
 #endif // GC_DEBUG
 }
@@ -532,13 +536,26 @@ void gc() {
       continue;
     }
 
-    printf("Checking pinned variable: %p (%p %p %p)\n", *(*v)->variable, (*v)->variable, *v, v);
+    //printf("Checking pinned variable: %p (%p %p %p)\n", *(*v)->variable, (*v)->variable, *v, v);
+    printf("Pointer to pointer to variable: %p\n", v);
+    printf("Pointer to variable: %p\n", *v);
+    printf("Pointer to pointer to object: %p\n", (*v)->variable);
+    printf("Pointer to object: %p\n", *(*v)->variable);
+    /* struct PinnedVariable **w = v; */
+    /* struct PinnedVariable *x = *v; */
+    /* Object **y = (*v)->variable; */
+    /* Object *z = *(*v)->variable; */
+    /* printf("Pointer to pointer to variable: %p\n", w); */
+    /* printf("Pointer to variable           : %p\n", x); */
+    /* printf("Pointer to pointer to object  : %p\n", y); */
+    /* printf("Pointer to object             : %p\n", z); */
 
-    print((Object *)(*(**v).variable));
-    print((Object *)(*(*v)->variable));
-    print(*(*v)->variable);
+    //print((Object *)(*(**v).variable));
+    //print((Object *)(*(*v)->variable));
+    //print(*(*v)->variable);
 
-    ((Object *)((*v)->variable))->mark = current_mark;
+    ((Object *)((*v)->variable))->mark = 88;
+    printf("Marked pinned var\n");
   }
 #endif // GC_PIN
 #endif // GC_MARK
@@ -752,10 +769,6 @@ Object *intern_symbol(char *name) {
     printf("Interned symbol %p\n", sym);
   }
 
-  if (strcmp(name, "b") == 0) {
-    current_mark = 99;
-  }
-
   return sym;
 }
 
@@ -902,12 +915,10 @@ Object *read_list(FILE *);
 // XXX Review these: strchr, strdup, strcmp, strspn, atoi
 Object *read_lisp(FILE *in) {
   Object *obj = s_nil;
-  char c;
-
   pin_variable(&obj);
 
   skip_whitespace(in);
-  c = getc(in);
+  char c = getc(in);
 
   if (c == '\'') {
     obj = cons(s_quote, cons(read_lisp(in), s_nil));
@@ -941,11 +952,13 @@ Object *read_lisp(FILE *in) {
 }
 
 Object *read_list(FILE *in) {
-  char c;
-  Object *car, *cdr;
+  Object *car = NULL;
+  Object *cdr = NULL;
 
   car = cdr = make_cell();
   car->cell.car = read_lisp(in);
+
+  char c;
 
   while ((c = getc(in)) != ')') {
     if (c == '.') {
@@ -973,12 +986,6 @@ Object *read_list(FILE *in) {
  * and the existing env in the tail.
  */
 Object *extend(Object *env, Object *var, Object *val) {
-  /* printf("Extend list %p with var ", env); */
-  /* print(var); */
-  /* printf(" = "); */
-  /* print(val); */
-  /* printf("\n"); */
-
   Object *pair = cons(var, val);
 
   return cons(pair, env);
@@ -990,14 +997,6 @@ Object *extend(Object *env, Object *var, Object *val) {
  */
 Object *extend_env(Object* env, Object *var, Object *val) {
   Object *current_env = cdr(env);
-  /* printf("Current env = "); */
-  /* print(env); */
-  /* printf("Extend env %p with var ", env); */
-  /* print(var); */
-  /* printf(" = "); */
-  /* print(val); */
-  /* printf("\n"); */
-
   Object *updated_env = extend(current_env, var, val);
 
   setcdr(env, updated_env);
@@ -1230,7 +1229,7 @@ void print_cell(Object *car) {
       printf(" ");
   }
 
-  printf(")\n");
+  printf(")");
 }
 
 void print(Object *obj) {
@@ -1350,6 +1349,7 @@ void run_code_tests() {
 
 void run_file_tests(char *fname) {
   printf("\n\n--------------------BEGIN FILE TESTS: %s\n", fname);
+  current_mark = 99;
 
   FILE *fp = fopen(fname, "r");
 
@@ -1395,11 +1395,11 @@ int main(int argc, char* argv[]) {
   symbols = cons(s_nil, s_nil);
 
   s_t = intern_symbol("t");
-  s_lambda = intern_symbol("lambda");
-  s_define = intern_symbol("define");
+  /* s_lambda = intern_symbol("lambda"); */
+  /* s_define = intern_symbol("define"); */
   s_quote = intern_symbol("quote");
-  s_setq = intern_symbol("setq");
-  s_if = intern_symbol("if");
+  /* s_setq = intern_symbol("setq"); */
+  /* s_if = intern_symbol("if"); */
 
   /* Create top level environment (list of lists).
    * Head is empty list and should never change,
@@ -1410,16 +1410,16 @@ int main(int argc, char* argv[]) {
   env = cons(cons(s_nil, s_nil), s_nil);
   extend_env(env, s_t, s_t);
 
-  extend_env(env, intern_symbol("cons"), make_primitive(prim_cons));
-  extend_env(env, intern_symbol("car"), make_primitive(prim_car));
-  extend_env(env, intern_symbol("cdr"), make_primitive(prim_cdr));
+  /* extend_env(env, intern_symbol("cons"), make_primitive(prim_cons)); */
+  /* extend_env(env, intern_symbol("car"), make_primitive(prim_car)); */
+  /* extend_env(env, intern_symbol("cdr"), make_primitive(prim_cdr)); */
 
-  extend_env(env, intern_symbol("eq"), make_primitive(primitive_eq));
+  /* extend_env(env, intern_symbol("eq"), make_primitive(primitive_eq)); */
 
-  extend_env(env, intern_symbol("+"), make_primitive(primitive_add));
-  extend_env(env, intern_symbol("-"), make_primitive(primitive_sub));
-  extend_env(env, intern_symbol("*"), make_primitive(primitive_mul));
-  extend_env(env, intern_symbol("/"), make_primitive(primitive_div));
+  /* extend_env(env, intern_symbol("+"), make_primitive(primitive_add)); */
+  /* extend_env(env, intern_symbol("-"), make_primitive(primitive_sub)); */
+  /* extend_env(env, intern_symbol("*"), make_primitive(primitive_mul)); */
+  /* extend_env(env, intern_symbol("/"), make_primitive(primitive_div)); */
 
 #ifdef CODE_TEST
   run_code_tests();
@@ -1432,8 +1432,9 @@ int main(int argc, char* argv[]) {
   /* run_file_tests("./test4.lsp"); */
   /* run_file_tests("./test5.lsp"); */
   /* run_file_tests("./test6.lsp"); */
+  run_file_tests("./testS.lsp");
   /* run_file_tests("./testT.lsp"); */
-  run_file_tests("./testU.lsp");
+  /* run_file_tests("./testU.lsp"); */
   /* run_file_tests("./testV.lsp"); */
   /* run_file_tests("./testW.lsp"); */
   /* run_file_tests("./testX.lsp"); */
