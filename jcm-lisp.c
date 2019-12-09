@@ -45,11 +45,12 @@ typedef enum {
   SYMBOL = 4,
   CELL = 5,
   PRIMITIVE = 6,
-  PROC = 7
+  PROC = 7,
+  DEBUG = 8
 } obj_type;
 
 typedef struct Object Object;
-typedef struct Object *(primitive_fn)(struct Object *);
+typedef struct Object *(primitive_fn)(struct Object *); /* first parens optional? */
 
 struct Fixnum {
   int value;
@@ -146,8 +147,8 @@ void pin_variable(Object **obj) {
   struct PinnedVariable *pinned_var = NULL;
   pinned_var = calloc(1, sizeof(struct PinnedVariable));
   assert(pinned_var != NULL);
-  pinned_var->variable = obj;
 
+  pinned_var->variable = obj;
   pinned_var->inUse = 1;
   pinned_var->next = pinned_variables;
 
@@ -188,8 +189,9 @@ void unpin_variable(Object **obj) {
       //printf("Pinned variable found %p %d\n", target, *(Object *)obj->id);
       //printf("Pinned variable found %p\n", *target);
 
-      //printf("Containing: ");
-      //print(*(*v)->variable);
+      printf("Containing: ");
+      print(*(*v)->variable);
+      print(*obj);              /* Since obj == var, why not use simpler reference? */
 
       //print((struct Object *)*target->variable);
       //print((struct Object *)target->variable);
@@ -550,12 +552,17 @@ void gc() {
     /* printf("Pointer to pointer to object  : %p\n", y); */
     /* printf("Pointer to object             : %p\n", z); */
 
-    //print((Object *)(*(**v).variable));
-    //print((Object *)(*(*v)->variable));
-    //print(*(*v)->variable);
+    Object *tempObj = (Object *)(*(*v)->variable);
+    if (tempObj != NULL) {
+      print(tempObj);
+      tempObj->mark = 77;
+      //print((Object *)(*(**v).variable));
+      //print((Object *)(*(*v)->variable));
+      print(*(*v)->variable);
 
-    ((Object *)((*v)->variable))->mark = 88;
-    printf("Marked pinned var\n");
+      ((Object *)(*(*v)->variable))->mark = 88;
+      printf("Marked pinned var\n");
+    }
   }
 #endif // GC_PIN
 #endif // GC_MARK
@@ -929,10 +936,8 @@ Object *read_lisp(FILE *in) {
   } else if (isdigit(c)) {
     ungetc(c, in);
     obj = read_number(in);
-  } else if (isalpha(c)) {
-    ungetc(c, in);
-    obj = read_symbol(in);
-  } else if (strchr("+-/*", c)) {
+  } else if (isalpha(c) ||
+             strchr("+-/*", c)) {
     ungetc(c, in);
     obj = read_symbol(in);
   } else if (c == ')') {
@@ -1212,6 +1217,11 @@ void print_cell(Object *car) {
 
   while (obj != s_nil && obj != NULL) {
     if (obj->type == CELL) {
+      if (obj == obj->cell.cdr ||
+          obj == obj->cell.car ||
+          //obj == car
+          0)
+        error("Circular reference??");
       print(obj->cell.car);
     } else {
       printf(". ");
@@ -1220,8 +1230,6 @@ void print_cell(Object *car) {
     }
 
 //    sleep(1);
-    if (obj == obj->cell.cdr)
-      error("Circular reference??");
 
     obj = obj->cell.cdr;
 
@@ -1376,6 +1384,7 @@ void run_file_tests(char *fname) {
     printf("\n");
     //gc();
   }
+
   unpin_variable(&result);
 
   fclose(fp);
