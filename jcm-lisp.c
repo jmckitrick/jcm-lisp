@@ -21,7 +21,7 @@
 //#define MAX_ALLOC_SIZE  128
 //#define MAX_ALLOC_SIZE  96
 //#define MAX_ALLOC_SIZE  65
-#define MAX_ALLOC_SIZE  15
+#define MAX_ALLOC_SIZE  18
 
 #define GC_ENABLED
 #define GC_MARK
@@ -80,17 +80,16 @@ struct Proc {
 };
 
 struct Object {
-  obj_type type;
-
   union {
+    struct Cell cell;
+    struct Symbol symbol;
     struct Fixnum num;
     struct String str;
-    struct Symbol symbol;
-    struct Cell cell;
-    struct Primitive primitive;
     struct Proc proc;
+    struct Primitive primitive;
   };
 
+  obj_type type;
   int mark;
   int id;
   struct Object *next;
@@ -493,7 +492,7 @@ int check_active() {
 int check_free() {
   int counted = 0;
 
-  for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
+  for (int i = 1; i <= MAX_ALLOC_SIZE; i++) {
     if (free_list[i] != NULL)
       counted++;
   }
@@ -555,7 +554,8 @@ void gc() {
     Object *tempObj = (Object *)(*(*v)->variable);
     if (tempObj != NULL) {
       print(tempObj);
-      tempObj->mark = 77;
+      //tempObj->mark = 77;
+      mark(tempObj);
       //print((Object *)(*(**v).variable));
       //print((Object *)(*(*v)->variable));
       print(*(*v)->variable);
@@ -928,7 +928,21 @@ Object *read_lisp(FILE *in) {
   char c = getc(in);
 
   if (c == '\'') {
-    obj = cons(s_quote, cons(read_lisp(in), s_nil));
+    //obj = cons(s_quote, cons(read_lisp(in), s_nil));
+    Object *content = NULL;
+    pin_variable(&content);
+    content = read_lisp(in);
+
+    Object *l = NULL;
+    pin_variable(&l);
+    l = cons(content, s_nil);
+
+    obj = cons(s_quote, l);
+    unpin_variable(&l);
+
+    //obj = cons(s_quote, content);
+
+    unpin_variable(&content);
   } else if (c == '(') {
     obj = read_list(in);
   } else if (c == '"') {
@@ -957,11 +971,11 @@ Object *read_lisp(FILE *in) {
 }
 
 Object *read_list(FILE *in) {
-  Object *car = NULL;
-  Object *cdr = NULL;
+  Object *cell = NULL;
+  pin_variable(&cell);
 
-  car = cdr = make_cell();
-  car->cell.car = read_lisp(in);
+  cell = make_cell();
+  cell->cell.car = read_lisp(in);
 
   char c;
 
@@ -972,17 +986,17 @@ Object *read_list(FILE *in) {
       getc(in);
 
       // The rest goes into the cdr.
-      cdr->cell.cdr = read_lisp(in);
+      cell->cell.cdr = read_lisp(in);
     } else if (!is_whitespace(c)) {
       ungetc(c, in);
 
-      cdr->cell.cdr = make_cell();
-      cdr = cdr->cell.cdr;
-      cdr->cell.car = read_lisp(in);
+      cell->cell.cdr = make_cell();
+      cell->cell.cdr->cell.car = read_lisp(in);
     }
   }
 
-  return car;
+  unpin_variable(&cell);
+  return cell;
 }
 
 /*
@@ -1316,9 +1330,11 @@ void init() {
   current_mark = 1;
 #endif
 
-  for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
+  free_list[0] = NULL;
+
+  for (int i = 1; i <= MAX_ALLOC_SIZE; i++) {
     Object *obj = calloc(1, sizeof(struct Object));
-    obj->id = i + 1;
+    obj->id = i;
     obj->type = UNKNOWN;
     free_list[i] = obj;
   }
