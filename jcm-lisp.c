@@ -17,25 +17,26 @@
 
 #define MAX_BUFFER_SIZE 100
 
-//#define MAX_ALLOC_SIZE  256
+#define MAX_ALLOC_SIZE  256
 //#define MAX_ALLOC_SIZE  128
 //#define MAX_ALLOC_SIZE  96
 //#define MAX_ALLOC_SIZE  65
-#define MAX_ALLOC_SIZE  18
+//#define MAX_ALLOC_SIZE  18
 
 #define GC_ENABLED
 #define GC_MARK
 #define GC_SWEEP
-#define GC_DEBUG
-#define GC_DEBUG_X
-#define GC_DEBUG_XX
 #define GC_PIN
-#define GC_PIN_DEBUG
-#define GC_PIN_DEBUG_X
+
+//#define GC_DEBUG
+//#define GC_DEBUG_X
+//#define GC_DEBUG_XX
+//#define GC_PIN_DEBUG
+//#define GC_PIN_DEBUG_X
 
 //#define CODE_TEST
-#define FILE_TEST
-//#define REPL
+//#define FILE_TEST
+#define REPL
 
 typedef enum {
   UNKNOWN = 0,
@@ -162,8 +163,8 @@ void pin_variable(Object **obj) {
 
 #ifdef GC_PIN_DEBUG_X
   printf("Pinned variables after  = %p\n", pinned_variables);
-#endif //GC_PIN_DEBUG_X
   printf("Pinned variable count %d\n", pinned_variable_count);
+#endif //GC_PIN_DEBUG_X
 }
 #else
 void pin_variable(Object **obj) { // void
@@ -189,7 +190,7 @@ void unpin_variable(Object **obj) {
       //printf("Pinned variable found %p\n", *target);
 
       printf("Containing: ");
-      print(*(*v)->variable);
+      //print(*(*v)->variable);
       print(*obj);              /* Since obj == var, why not use simpler reference? */
 
       //print((struct Object *)*target->variable);
@@ -208,8 +209,8 @@ void unpin_variable(Object **obj) {
 #ifdef GC_PIN_DEBUG
       //printf("Pinned variable  head %p\n", *v);
       printf("\nUnpin\n");
-#endif
       printf("Pinned variable count %d\n", pinned_variable_count);
+#endif
       return;
     }
   }
@@ -638,7 +639,7 @@ Object *make_cell() {
 
   pin_variable(&obj);
   obj = new_Object();
-  printf("cell\n");
+  //printf("cell\n");
 
   obj->type = CELL;
   obj->cell.car = s_nil;
@@ -652,7 +653,7 @@ Object *cons(Object *car, Object *cdr) {
 
   pin_variable(&obj);
   obj = make_cell();
-  printf("cons\n");
+  //printf("cons\n");
   obj->cell.car = car;
   obj->cell.cdr = cdr;
   unpin_variable(&obj);
@@ -664,7 +665,7 @@ Object *make_string(char *str) {
 
   pin_variable(&obj);
   obj = new_Object();
-  printf("string\n");
+  //printf("string\n");
 
   obj->type = STRING;
   obj->str.text = strdup(str);
@@ -677,7 +678,7 @@ Object *make_fixnum(int n) {
 
   pin_variable(&obj);
   obj = new_Object();
-  printf("fixnum\n");
+  //printf("fixnum\n");
 
   obj->type = FIXNUM;
   obj->num.value = n;
@@ -690,7 +691,7 @@ Object *make_symbol(char *name) {
 
   pin_variable(&obj);
   obj = new_Object();
-  printf("symbol\n");
+  //printf("symbol\n");
 
   obj->type = SYMBOL;
   obj->symbol.name = strdup(name);
@@ -703,7 +704,7 @@ Object *make_primitive(primitive_fn *fn) {
 
   pin_variable(&obj);
   obj = new_Object();
-  printf("primitive\n");
+  //printf("primitive\n");
 
   obj->type = PRIMITIVE;
   obj->primitive.fn = fn;
@@ -716,7 +717,7 @@ Object *make_proc(Object *vars, Object *body, Object *env) {
 
   pin_variable(&obj);
   obj = new_Object();
-  printf("proc\n");
+  //printf("proc\n");
 
   obj->type = PROC;
   obj->proc.vars = vars;
@@ -769,11 +770,11 @@ Object *intern_symbol(char *name) {
   Object *sym = lookup_symbol(name);
 
   if (sym == NULL) {
-    printf("Make symbol %s\n", name);
+    //printf("Make symbol %s\n", name);
     sym = make_symbol(name);
-    printf("Made symbol %p\n", sym);
+    //printf("Made symbol %p\n", sym);
     symbols = cons(sym, symbols);
-    printf("Interned symbol %p\n", sym);
+    //printf("Interned symbol %p\n", sym);
   }
 
   return sym;
@@ -783,8 +784,8 @@ Object *intern_symbol(char *name) {
 Object *assoc(Object *key, Object *list) {
   if (list != s_nil) {
     Object *pair = car(list);
-    printf("Assoc:\n");
-    print(pair);
+    //printf("Assoc:\n");
+    //print(pair);
     //printf("\nAssoc check '%s' vs '%s'\n", car(pair)->symbol.name, car(key)->symbol.name);
     //printf("\nAssoc check %p vs %p\n", car(pair), key);
     if (car(pair) == key)
@@ -928,21 +929,19 @@ Object *read_lisp(FILE *in) {
   char c = getc(in);
 
   if (c == '\'') {
-    //obj = cons(s_quote, cons(read_lisp(in), s_nil));
-    Object *content = NULL;
-    pin_variable(&content);
-    content = read_lisp(in);
+    obj = cons(s_quote, cons(read_lisp(in), s_nil));
+    /* Object *content = NULL; */
+    /* pin_variable(&content); */
+    /* content = read_lisp(in); */
 
-    Object *l = NULL;
-    pin_variable(&l);
-    l = cons(content, s_nil);
+    /* Object *l = NULL; */
+    /* pin_variable(&l); */
+    /* l = cons(content, s_nil); */
 
-    obj = cons(s_quote, l);
-    unpin_variable(&l);
+    /* obj = cons(s_quote, l); */
+    /* unpin_variable(&l); */
 
-    //obj = cons(s_quote, content);
-
-    unpin_variable(&content);
+    /* unpin_variable(&content); */
   } else if (c == '(') {
     obj = read_list(in);
   } else if (c == '"') {
@@ -971,11 +970,12 @@ Object *read_lisp(FILE *in) {
 }
 
 Object *read_list(FILE *in) {
-  Object *cell = NULL;
-  pin_variable(&cell);
+  Object *car = NULL;
+  Object *cdr = NULL;
+  pin_variable(&car);
 
-  cell = make_cell();
-  cell->cell.car = read_lisp(in);
+  car = cdr = make_cell();
+  car->cell.car = read_lisp(in);
 
   char c;
 
@@ -986,17 +986,19 @@ Object *read_list(FILE *in) {
       getc(in);
 
       // The rest goes into the cdr.
-      cell->cell.cdr = read_lisp(in);
+      car->cell.cdr = read_lisp(in);
     } else if (!is_whitespace(c)) {
       ungetc(c, in);
 
-      cell->cell.cdr = make_cell();
-      cell->cell.cdr->cell.car = read_lisp(in);
+      cdr->cell.cdr = make_cell();
+      cdr = cdr->cell.cdr;
+      cdr->cell.car = read_lisp(in);
     }
   }
 
-  unpin_variable(&cell);
-  return cell;
+  unpin_variable(&car);
+
+  return car;
 }
 
 /*
@@ -1082,8 +1084,8 @@ Object *apply(Object *obj, Object *args, Object *env) {
 }
 
 Object *eval_symbol(Object *obj, Object *env) {
-  printf("Eval symbol %p\n", obj);
-  printf("Symbol name '%s'\n", obj->symbol.name);
+  //printf("Eval symbol %p\n", obj);
+  //printf("Symbol name '%s'\n", obj->symbol.name);
 
   Object *pair = assoc(obj, env);
 
@@ -1093,8 +1095,8 @@ Object *eval_symbol(Object *obj, Object *env) {
     error(buff);
   }
 
-  printf("Pair   = %p\n", pair);
-  printf("Symbol = %p\n", cdr(pair));
+  //printf("Pair   = %p\n", pair);
+  //printf("Symbol = %p\n", cdr(pair));
 
   return cdr(pair);
 }
@@ -1103,7 +1105,7 @@ Object *eval_list(Object *obj, Object *env) {
   if (obj == s_nil)
     return obj;
 
-  printf("Eval list\n");
+  //printf("Eval list\n");
 
   if (car(obj) == s_define) {
     Object *cell = obj; // car(cell) should be symbol named define
@@ -1181,14 +1183,14 @@ Object *eval(Object *obj, Object *env) {
 
   Object *result = s_nil;
 
-  printf("Eval: ");
+  //printf("Eval: ");
 
   switch (obj->type) {
     case STRING:
     case FIXNUM:
     case PRIMITIVE:
     case PROC:
-      printf("\nEval: %d\n", obj->type);
+      //printf("\nEval: %d\n", obj->type);
       result = obj;
       break;
     case SYMBOL:
@@ -1420,11 +1422,11 @@ int main(int argc, char* argv[]) {
   symbols = cons(s_nil, s_nil);
 
   s_t = intern_symbol("t");
-  /* s_lambda = intern_symbol("lambda"); */
-  /* s_define = intern_symbol("define"); */
+  s_lambda = intern_symbol("lambda");
+  s_define = intern_symbol("define");
   s_quote = intern_symbol("quote");
-  /* s_setq = intern_symbol("setq"); */
-  /* s_if = intern_symbol("if"); */
+  s_setq = intern_symbol("setq");
+  s_if = intern_symbol("if");
 
   /* Create top level environment (list of lists).
    * Head is empty list and should never change,
@@ -1435,16 +1437,16 @@ int main(int argc, char* argv[]) {
   env = cons(cons(s_nil, s_nil), s_nil);
   extend_env(env, s_t, s_t);
 
-  /* extend_env(env, intern_symbol("cons"), make_primitive(prim_cons)); */
-  /* extend_env(env, intern_symbol("car"), make_primitive(prim_car)); */
-  /* extend_env(env, intern_symbol("cdr"), make_primitive(prim_cdr)); */
+  extend_env(env, intern_symbol("cons"), make_primitive(prim_cons));
+  extend_env(env, intern_symbol("car"), make_primitive(prim_car));
+  extend_env(env, intern_symbol("cdr"), make_primitive(prim_cdr));
 
-  /* extend_env(env, intern_symbol("eq"), make_primitive(primitive_eq)); */
+  extend_env(env, intern_symbol("eq"), make_primitive(primitive_eq));
 
-  /* extend_env(env, intern_symbol("+"), make_primitive(primitive_add)); */
-  /* extend_env(env, intern_symbol("-"), make_primitive(primitive_sub)); */
-  /* extend_env(env, intern_symbol("*"), make_primitive(primitive_mul)); */
-  /* extend_env(env, intern_symbol("/"), make_primitive(primitive_div)); */
+  extend_env(env, intern_symbol("+"), make_primitive(primitive_add));
+  extend_env(env, intern_symbol("-"), make_primitive(primitive_sub));
+  extend_env(env, intern_symbol("*"), make_primitive(primitive_mul));
+  extend_env(env, intern_symbol("/"), make_primitive(primitive_div));
 
 #ifdef CODE_TEST
   run_code_tests();
@@ -1457,14 +1459,14 @@ int main(int argc, char* argv[]) {
   /* run_file_tests("./test4.lsp"); */
   /* run_file_tests("./test5.lsp"); */
   /* run_file_tests("./test6.lsp"); */
-  run_file_tests("./testS.lsp");
+  /* run_file_tests("./testS.lsp"); */
   /* run_file_tests("./testT.lsp"); */
-  /* run_file_tests("./testU.lsp"); */
+  run_file_tests("./testU.lsp");
   /* run_file_tests("./testV.lsp"); */
   /* run_file_tests("./testW.lsp"); */
   /* run_file_tests("./testX.lsp"); */
-//  run_file_tests("./testY.lsp"); // <--
-//  run_file_tests("./testZ.lsp");
+  /* run_file_tests("./testY.lsp"); */
+  /* run_file_tests("./testZ.lsp"); */
 #endif
 
 #ifdef REPL
