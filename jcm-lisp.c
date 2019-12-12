@@ -17,7 +17,8 @@
 
 #define MAX_BUFFER_SIZE 100
 
-#define MAX_ALLOC_SIZE  256
+#define MAX_ALLOC_SIZE  1024
+//#define MAX_ALLOC_SIZE  256
 //#define MAX_ALLOC_SIZE  128
 //#define MAX_ALLOC_SIZE  96
 //#define MAX_ALLOC_SIZE  65
@@ -28,15 +29,15 @@
 #define GC_SWEEP
 #define GC_PIN
 
-//#define GC_DEBUG
+#define GC_DEBUG
 //#define GC_DEBUG_X
 //#define GC_DEBUG_XX
 //#define GC_PIN_DEBUG
 //#define GC_PIN_DEBUG_X
 
 //#define CODE_TEST
-//#define FILE_TEST
-#define REPL
+#define FILE_TEST
+//#define REPL
 
 typedef enum {
   UNKNOWN = 0,
@@ -407,9 +408,11 @@ void sweep() {
 #endif // GC_DEBUG
 
     if (obj->mark == 0) {
+#ifdef GC_DEBUG
       //printf("obj->mark: %d\n", obj->mark);
       printf("\nSWEEP: %p id: %d mark: %d ", obj, obj->id, obj->mark);
       print(obj);
+#endif // GC_DEBUG
 
       // Free any additional allocated memory.
       switch (obj->type) {
@@ -562,7 +565,7 @@ void gc() {
       print(*(*v)->variable);
 
       ((Object *)(*(*v)->variable))->mark = 88;
-      printf("Marked pinned var\n");
+      printf("\nMarked pinned var\n");
     }
   }
 #endif // GC_PIN
@@ -1453,20 +1456,20 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef FILE_TEST
-  /* run_file_tests("./test1.lsp"); */
-  /* run_file_tests("./test2.lsp"); */
-  /* run_file_tests("./test3.lsp"); */
-  /* run_file_tests("./test4.lsp"); */
-  /* run_file_tests("./test5.lsp"); */
-  /* run_file_tests("./test6.lsp"); */
-  /* run_file_tests("./testS.lsp"); */
-  /* run_file_tests("./testT.lsp"); */
+  run_file_tests("./test1.lsp");
+  run_file_tests("./test2.lsp");
+  run_file_tests("./test3.lsp");
+  run_file_tests("./test4.lsp");
+  run_file_tests("./test5.lsp");
+  run_file_tests("./test6.lsp");
+  run_file_tests("./testS.lsp");
+  run_file_tests("./testT.lsp");
   run_file_tests("./testU.lsp");
-  /* run_file_tests("./testV.lsp"); */
-  /* run_file_tests("./testW.lsp"); */
-  /* run_file_tests("./testX.lsp"); */
-  /* run_file_tests("./testY.lsp"); */
-  /* run_file_tests("./testZ.lsp"); */
+  run_file_tests("./testV.lsp");
+  run_file_tests("./testW.lsp");
+  run_file_tests("./testX.lsp");
+  run_file_tests("./testY.lsp");
+  run_file_tests("./testZ.lsp");
 #endif
 
 #ifdef REPL
