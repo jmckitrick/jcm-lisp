@@ -109,7 +109,7 @@ int current_mark;
 
 void error(char *msg) {
   printf("\nError %s\n", msg);
-  //exit(0);
+  exit(0);
 }
 
 #ifdef GC_PIN
@@ -945,10 +945,38 @@ Object *read_list(FILE *in) {
  * and the existing env in the tail.
  */
 Object *extend(Object *env, Object *var, Object *val) {
-  Object *pair = cons(var, val);
+  Object *pair = NULL;
+  pin_variable(&pair);
 
-  return cons(pair, env);
+  pair = cons(var, val);
+
+  Object *result = NULL;
+  pin_variable(&result);
+
+  result = cons(pair, env);
+
+  unpin_variable(&result);
+  unpin_variable(&pair);
+
+  return result;
 }
+
+void print_env(Object *env) {
+  printf("\nEnv entry: ");
+
+  Object *head = car(env);
+  print(head);
+  printf(" at %p:\n", head);
+
+  Object *tail = cdr(env);
+
+  if (tail != s_nil) {
+    print_env(tail);
+  }
+
+  //printf("Done.\n");
+}
+
 
 /*
  * Set the tail of this env to a new list
@@ -974,16 +1002,34 @@ Object *eval_args(Object *args, Object *env) {
 }
 
 Object *progn(Object *forms, Object *env) {
+  printf("progn\n");
+  print_env(env);
+
   if (forms == s_nil)
     return s_nil;
 
   for (;;) {
     if (cdr(forms) == s_nil)
-      return eval(car(forms), env);
+    {
+      printf("Eval 1 in progn: ");
+      print(car(forms));
+      printf("\n");
+      Object *temp = eval(car(forms), env);
+      printf("\n------------------> End of progn\n");
+      print_env(env);
+      return temp;
 
+      //return eval(car(forms), env);
+    }
+
+    printf("Eval 2 in progn: ");
+    eval(car(forms), env);
+    print(car(forms));
+    printf("\nRecurse in progn: ");
+    print(cdr(forms));
+    printf("\n");
     forms = cdr(forms);
   }
-
   return s_nil;
 }
 
@@ -996,6 +1042,9 @@ Object *multiple_extend_env(Object *env, Object *vars, Object *vals) {
 }
 
 Object *apply(Object *obj, Object *args, Object *env) {
+  printf("Apply\n");
+  print_env(env);
+
   if (is_primitive(obj))
     return (*obj->primitive.fn)(args);
 
@@ -1008,7 +1057,6 @@ Object *apply(Object *obj, Object *args, Object *env) {
 
   printf("Proc vars:\n");
   printf("Proc vars pointer: %p\n", obj->proc.vars);
-  //printf("Proc vars ?: %d\n", obj->proc);
   printf("Proc vars type: %d\n", obj->proc.vars->type);
   print(obj->proc.vars);
   printf("Proc body:\n");
@@ -1022,9 +1070,6 @@ Object *apply(Object *obj, Object *args, Object *env) {
 }
 
 Object *eval_symbol(Object *obj, Object *env) {
-  //printf("Eval symbol %p\n", obj);
-  //printf("Symbol name '%s'\n", obj->symbol.name);
-
   Object *pair = assoc(obj, env);
 
   if (pair == NULL) {
@@ -1033,17 +1078,12 @@ Object *eval_symbol(Object *obj, Object *env) {
     error(buff);
   }
 
-  //printf("Pair   = %p\n", pair);
-  //printf("Symbol = %p\n", cdr(pair));
-
   return cdr(pair);
 }
 
 Object *eval_list(Object *obj, Object *env) {
   if (obj == s_nil)
     return obj;
-
-  //printf("Eval list\n");
 
   if (car(obj) == s_define) {
     Object *cell = obj; // car(cell) should be symbol named define
@@ -1054,13 +1094,16 @@ Object *eval_list(Object *obj, Object *env) {
     cell = cdr(cell);
     Object *cell_value = car(cell);
 
-    Object *var = cell_symbol;
     Object *val = eval(cell_value, env);
 
     // Check for existing binding?
     Object *pair = assoc(cell_symbol, env);
 
     if (pair == NULL) {
+      printf("Creating new binding: ");
+      print(cell_symbol);
+      printf("\n");
+      Object *var = cell_symbol;
       return extend_env(env, var, val);
     } else {
       setcdr(pair, val);
@@ -1121,14 +1164,11 @@ Object *eval(Object *obj, Object *env) {
 
   Object *result = s_nil;
 
-  //printf("Eval: ");
-
   switch (obj->type) {
     case STRING:
     case FIXNUM:
     case PRIMITIVE:
     case PROC:
-      //printf("\nEval: %d\n", obj->type);
       result = obj;
       break;
     case SYMBOL:
@@ -1170,11 +1210,6 @@ void print_cell(Object *car) {
 
   while (obj != s_nil && obj != NULL) {
     if (obj->type == CELL) {
-      if (obj == obj->cell.cdr ||
-          obj == obj->cell.car ||
-          //obj == car
-          0)
-        error("Circular reference??");
       print(obj->cell.car);
     } else {
       printf(". ");
@@ -1303,7 +1338,6 @@ void run_code_tests() {
 
 void run_file_tests(char *fname) {
   printf("\n\n--------------------BEGIN FILE TESTS: %s\n", fname);
-  current_mark = 99;
 
   FILE *fp = fopen(fname, "r");
 
@@ -1325,7 +1359,7 @@ void run_file_tests(char *fname) {
     print(result);
     printf("\n");
     result = eval(result, env);
-    printf("After eval (result):\n");
+    printf("After eval:\n");
     print(result);
     printf("\n");
   }
@@ -1380,20 +1414,23 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef FILE_TEST
-  run_file_tests("./test1.lsp");
-  run_file_tests("./test2.lsp");
-  run_file_tests("./test3.lsp");
-  run_file_tests("./test4.lsp");
-  run_file_tests("./test5.lsp");
-  run_file_tests("./test6.lsp");
-  run_file_tests("./testS.lsp");
-  run_file_tests("./testT.lsp");
-  run_file_tests("./testU.lsp");
-  run_file_tests("./testV.lsp");
-  run_file_tests("./testW.lsp");
-  run_file_tests("./testX.lsp");
-  run_file_tests("./testY.lsp");
-  run_file_tests("./testZ.lsp");
+  /* run_file_tests("./test1.lsp"); */
+  /* run_file_tests("./test2.lsp"); */
+  /* run_file_tests("./test3.lsp"); */
+  /* run_file_tests("./test4.lsp"); */
+  /* run_file_tests("./test5.lsp"); */
+  /* run_file_tests("./test6.lsp"); */
+  /* run_file_tests("./testP.lsp"); */
+  run_file_tests("./testQ.lsp");
+  /* run_file_tests("./testR.lsp"); */
+  /* run_file_tests("./testS.lsp"); */
+  /* run_file_tests("./testT.lsp"); */
+  /* run_file_tests("./testU.lsp"); */
+  /* run_file_tests("./testV.lsp"); */
+  /* run_file_tests("./testW.lsp"); */
+  /* run_file_tests("./testX.lsp"); */
+  /* run_file_tests("./testY.lsp"); */
+  /* run_file_tests("./testZ.lsp"); */
 #endif
 
 #ifdef REPL
