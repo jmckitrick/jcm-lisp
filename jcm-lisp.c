@@ -31,8 +31,8 @@
 //#define GC_PIN_DEBUG_X
 
 //#define CODE_TEST
-//#define FILE_TEST
-#define REPL
+#define FILE_TEST
+//#define REPL
 
 typedef enum {
   UNKNOWN = 0,
@@ -438,7 +438,7 @@ void sweep() {
           break;
       }
       if (!is_active(obj)) {
-        error("NOT found in active list!\n");
+        error("NOT found in active list!");
       }
 #endif // GC_DEBUG_XX
       obj->mark = 0;
@@ -811,13 +811,24 @@ void skip_whitespace(FILE *in) {
 
   while (!done) {
     c = getc(in);
-    if (c == '\n' && c == '\r')
+    if (c == '\n' || c == '\r')
       done = 1;
 
     if (!is_whitespace(c)) {
       ungetc(c, in);
       done = 1;
     }
+  }
+}
+
+void skip_comment(FILE *in) {
+  char c;
+  int done = 0;
+
+  while (!done) {
+    c = getc(in);
+    if (c == '\n' || c == '\r')
+      done = 1;
   }
 }
 
@@ -893,6 +904,8 @@ Object *read_lisp(FILE *in) {
     obj = read_symbol(in);
   } else if (c == ')') {
     ungetc(c, in);
+  } else if (c == ';') {
+    skip_comment(in);
   } else if (c == EOF) {
 #ifdef REPL
     exit(0);
@@ -1011,18 +1024,18 @@ Object *progn(Object *forms, Object *env) {
   for (;;) {
     if (cdr(forms) == s_nil)
     {
-      printf("Eval 1 in progn: ");
+      //printf("Eval 1 in progn: ");
       print(car(forms));
       printf("\n");
       Object *temp = eval(car(forms), env);
-      printf("\n------------------> End of progn\n");
+      //printf("\n------------------> End of progn\n");
       print_env(env);
       return temp;
 
       //return eval(car(forms), env);
     }
 
-    printf("Eval 2 in progn: ");
+    //printf("Eval 2 in progn: ");
     eval(car(forms), env);
     print(car(forms));
     printf("\nRecurse in progn: ");
@@ -1120,6 +1133,10 @@ Object *eval_list(Object *obj, Object *env) {
     Object *cell_value = car(cell);
 
     Object *pair = assoc(cell_symbol, env);
+
+    if (pair == NULL)
+      error("SETQ failed to find symbol in env.");
+
     Object *newval = eval(cell_value, env);
 
     setcdr(pair, newval);
@@ -1352,7 +1369,7 @@ void run_file_tests(char *fname) {
   while (result != NULL) {
     printf("\n----\nREAD from file\n");
     result = read_lisp(fp);
-    printf("After read (result):\n");
+    printf("After read:\n");
     print(result);
     printf("\n----\nEVALUATE from file\n");
     printf("Before eval:\n");
