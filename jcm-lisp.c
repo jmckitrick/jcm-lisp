@@ -31,8 +31,8 @@
 //#define GC_PIN_DEBUG_X
 
 //#define CODE_TEST
-#define FILE_TEST
-//#define REPL
+//#define FILE_TEST
+#define REPL
 
 typedef enum {
   UNKNOWN = 0,
@@ -674,6 +674,7 @@ Object *make_proc(Object *vars, Object *body, Object *env) {
   obj->proc.body = body;
   obj->proc.env = env;
   unpin_variable(&obj);
+  printf("Made proc\n");
   return obj;
 }
 
@@ -733,11 +734,15 @@ Object *intern_symbol(char *name) {
 // BUG: Does not walk list of environments! (?)
 Object *assoc(Object *key, Object *list) {
   if (list != s_nil) {
+    /* printf("Assoc:\n"); */
+    /* printf("key:\n"); */
+    /* print(key); */
     Object *pair = car(list);
-    //printf("Assoc:\n");
-    //print(pair);
-    //printf("\nAssoc check '%s' vs '%s'\n", car(pair)->symbol.name, car(key)->symbol.name);
-    //printf("\nAssoc check %p vs %p\n", car(pair), key);
+    /* printf("pair:\n"); */
+    /* print(pair); */
+    /* printf("Assoc check '%s' vs '%s'\n", car(pair)->symbol.name, key->symbol.name); */
+    printf("Assoc check '%s' vs '%s'\n", key->symbol.name, car(pair)->symbol.name);
+    /* printf("\nAssoc check %p vs %p\n", car(pair), key); */
     if (car(pair) == key)
       return pair;
 
@@ -745,6 +750,7 @@ Object *assoc(Object *key, Object *list) {
     return assoc(key, cdr(list));
   }
 
+  printf("Not found:  '%s'\n", key->symbol.name);
   return NULL;
 }
 
@@ -1016,7 +1022,7 @@ Object *eval_args(Object *args, Object *env) {
 
 Object *progn(Object *forms, Object *env) {
   printf("progn\n");
-  print_env(env);
+  //print_env(env);
 
   if (forms == s_nil)
     return s_nil;
@@ -1029,7 +1035,7 @@ Object *progn(Object *forms, Object *env) {
       printf("\n");
       Object *temp = eval(car(forms), env);
       //printf("\n------------------> End of progn\n");
-      print_env(env);
+      //print_env(env);
       return temp;
 
       //return eval(car(forms), env);
@@ -1056,7 +1062,7 @@ Object *multiple_extend_env(Object *env, Object *vars, Object *vals) {
 
 Object *apply(Object *obj, Object *args, Object *env) {
   printf("Apply\n");
-  print_env(env);
+  //print_env(env);
 
   if (is_primitive(obj))
     return (*obj->primitive.fn)(args);
@@ -1064,6 +1070,8 @@ Object *apply(Object *obj, Object *args, Object *env) {
   if (is_proc(obj))
     return progn(obj->proc.body, multiple_extend_env(env, obj->proc.vars, args));
 
+  // If this is neither a primitive function nor a proc,
+  // we are in a bad state.
   printf("Dumping %s:\n", get_type(obj));
   print(obj);
   printf("\n");
@@ -1124,13 +1132,17 @@ Object *eval_list(Object *obj, Object *env) {
       return val;
     }
   } else if (car(obj) == s_setq) {
+    //printf("SETQ\n");
     Object *cell = obj; // car(cell) should be symbol named setq
+    //print(cell);
 
     cell = cdr(cell);
     Object *cell_symbol = car(cell);
+    //print(cell_symbol);
 
     cell = cdr(cell);
     Object *cell_value = car(cell);
+    //print(cell_value);
 
     Object *pair = assoc(cell_symbol, env);
 
@@ -1165,6 +1177,9 @@ Object *eval_list(Object *obj, Object *env) {
     Object *vars = car(cdr(obj));
     Object *body = cdr(cdr(obj));
 
+    printf("Lambda with env:\n");
+    print_env(env);
+    printf("\n");
     return make_proc(vars, body, env);
   }
 
@@ -1172,12 +1187,20 @@ Object *eval_list(Object *obj, Object *env) {
   Object *proc = eval(car(obj), env);
   Object *args = eval_args(cdr(obj), env);
 
+  printf("Assuming proc\n");
+  print_env(env);
+  printf("\n");
   return apply(proc, args, env);
 }
 
 Object *eval(Object *obj, Object *env) {
   if (obj == NULL)
     return obj;
+
+  printf("Eval\n");
+  print(obj);
+  printf(" with env \n");
+  print_env(env);
 
   Object *result = s_nil;
 
@@ -1397,6 +1420,7 @@ int main(int argc, char* argv[]) {
   /*           'nil'   EOL  */
   /*             |      |   */
   /*             v      v   */
+  //symbols = cons(NULL, NULL);
   symbols = cons(s_nil, s_nil);
 
   s_t = intern_symbol("t");
