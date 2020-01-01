@@ -22,6 +22,8 @@ void error(char *msg) {
 }
 
 #ifdef GC_PIN
+int pinned_variable_count = 0;
+
 void print_pins() {
   printf("\nPinned variables:\n");
   struct PinnedVariable **v;

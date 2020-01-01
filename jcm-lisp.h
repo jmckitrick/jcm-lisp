@@ -109,7 +109,8 @@ struct PinnedVariable {
   int inUse;
 };
 
-struct PinnedVariable *pinned_variables; int pinned_variable_count = 0;
+struct PinnedVariable *pinned_variables;
+//int pinned_variable_count = 0;
 
 #endif //GC_PIN
 

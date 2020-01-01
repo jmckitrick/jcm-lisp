@@ -10,7 +10,7 @@
 CC = cc
 CFLAGS = -Wall -g -O0
 DEPS = jcm-lisp.h
-OBJ = jcm-lisp.o #gc.o
+OBJ = jcm-lisp.o gc.o
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
