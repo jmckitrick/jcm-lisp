@@ -1,12 +1,3 @@
-
-# jcm-lisp:
-# 	cc -Wall -g -O0 -o jcm-lisp jcm-lisp.c
-
-# #.PHONY:	clean
-# clean:
-# 	rm -rf jcm-lisp
-# 	rm -rf jcm-lisp.dSYM
-
 CC = cc
 CFLAGS = -Wall -g -O0
 DEPS = jcm-lisp.h

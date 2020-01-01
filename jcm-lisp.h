@@ -10,6 +10,13 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <assert.h>
+#include <sys/errno.h>
+
 #define MAX_BUFFER_SIZE 100
 
 #define MAX_ALLOC_SIZE  1024
@@ -26,8 +33,8 @@
 //#define GC_PIN_DEBUG_X
 
 //#define CODE_TEST
-//#define FILE_TEST
-#define REPL
+#define FILE_TEST
+//#define REPL
 
 typedef enum {
   UNKNOWN = 0,
@@ -110,7 +117,6 @@ struct PinnedVariable {
 };
 
 struct PinnedVariable *pinned_variables;
-//int pinned_variable_count = 0;
 
 #endif //GC_PIN
 
@@ -121,3 +127,9 @@ void unpin_variable(Object **obj);
 #define cadr(obj)    car(cdr(obj))
 
 Object *read_list(FILE *);
+
+#ifdef GC_ENABLED
+Object *alloc_Object();
+void gc();
+void error(char *msg);
+#endif // GC_ENABLED
