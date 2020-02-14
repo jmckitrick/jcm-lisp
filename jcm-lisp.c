@@ -106,81 +106,81 @@ Object *new_Object() {
 Object *make_cell() {
   Object *obj = NULL;
 
-  pin_variable(&obj);
+  pin_variable((void **)&obj);
   obj = new_Object();
 
   obj->type = CELL;
   obj->cell.car = s_nil;
   obj->cell.cdr = s_nil;
-  unpin_variable(&obj);
+  unpin_variable((void **)&obj);
   return obj;
 }
 
 Object *cons(Object *car, Object *cdr) {
   Object *obj = NULL;
 
-  pin_variable(&obj);
+  pin_variable((void **)&obj);
   obj = make_cell();
   obj->cell.car = car;
   obj->cell.cdr = cdr;
-  unpin_variable(&obj);
+  unpin_variable((void **)&obj);
   return obj;
 }
 
 Object *make_string(char *str) {
   Object *obj = NULL;
 
-  pin_variable(&obj);
+  pin_variable((void **)&obj);
   obj = new_Object();
   obj->type = STRING;
   obj->str.text = strdup(str);
-  unpin_variable(&obj);
+  unpin_variable((void **)&obj);
   return obj;
 }
 
 Object *make_fixnum(int n) {
   Object *obj = NULL;
 
-  pin_variable(&obj);
+  pin_variable((void **)&obj);
   obj = new_Object();
   obj->type = FIXNUM;
   obj->num.value = n;
-  unpin_variable(&obj);
+  unpin_variable((void **)&obj);
   return obj;
 }
 
 Object *make_symbol(char *name) {
   Object *obj = NULL;
 
-  pin_variable(&obj);
+  pin_variable((void **)&obj);
   obj = new_Object();
   obj->type = SYMBOL;
   obj->symbol.name = strdup(name);
-  unpin_variable(&obj);
+  unpin_variable((void **)&obj);
   return obj;
 }
 
 Object *make_primitive(primitive_fn *fn) {
   Object *obj = NULL;
 
-  pin_variable(&obj);
+  pin_variable((void **)&obj);
   obj = new_Object();
   obj->type = PRIMITIVE;
   obj->primitive.fn = fn;
-  unpin_variable(&obj);
+  unpin_variable((void **)&obj);
   return obj;
 }
 
 Object *make_proc(Object *vars, Object *body, Object *env) {
   Object *obj = NULL;
 
-  pin_variable(&obj);
+  pin_variable((void **)&obj);
   obj = new_Object();
   obj->type = PROC;
   obj->proc.vars = vars;
   obj->proc.body = body;
   obj->proc.env = env;
-  unpin_variable(&obj);
+  unpin_variable((void **)&obj);
   printf("Made proc\n");
   return obj;
 }
@@ -395,7 +395,7 @@ Object *read_number(FILE *in) {
 // XXX Review these: strchr, strdup, strcmp, strspn, atoi
 Object *read_lisp(FILE *in) {
   Object *obj = s_nil;
-  pin_variable(&obj);
+  pin_variable((void **)&obj);
 
   skip_whitespace(in);
   char c = getc(in);
@@ -426,7 +426,7 @@ Object *read_lisp(FILE *in) {
 #endif
   }
 
-  unpin_variable(&obj);
+  unpin_variable((void **)&obj);
 
   return obj;
 }
@@ -434,7 +434,7 @@ Object *read_lisp(FILE *in) {
 Object *read_list(FILE *in) {
   Object *car = NULL;
   Object *cdr = NULL;
-  pin_variable(&car);
+  pin_variable((void **)&car);
 
   car = cdr = make_cell();
   car->cell.car = read_lisp(in);
@@ -458,7 +458,7 @@ Object *read_list(FILE *in) {
     }
   }
 
-  unpin_variable(&car);
+  unpin_variable((void **)&car);
 
   return car;
 }
@@ -470,17 +470,17 @@ Object *read_list(FILE *in) {
  */
 Object *extend(Object *env, Object *var, Object *val) {
   Object *pair = NULL;
-  pin_variable(&pair);
+  pin_variable((void **)&pair);
 
   pair = cons(var, val);
 
   Object *result = NULL;
-  pin_variable(&result);
+  pin_variable((void **)&result);
 
   result = cons(pair, env);
 
-  unpin_variable(&result);
-  unpin_variable(&pair);
+  unpin_variable((void **)&result);
+  unpin_variable((void **)&pair);
 
   return result;
 }
@@ -858,25 +858,25 @@ void run_code_tests() {
   printf("\n\nBEGIN CODE TESTS\n");
 
   Object *obj1 = NULL;
-  pin_variable(&obj1);
+  pin_variable((void **)&obj1);
   obj1 = new_Object();
   obj1->type = NIL;
 
   Object *obj2 = NULL;
-  pin_variable(&obj2);
+  pin_variable((void **)&obj2);
   obj2 = new_Object();
   obj2->type = NIL;
 
   Object *obj3 = NULL;
-  pin_variable(&obj3);
+  pin_variable((void **)&obj3);
   obj3 = new_Object();
   obj3->type = NIL;
 
   gc();
 
-  unpin_variable(&obj3);
-  unpin_variable(&obj2);
-  unpin_variable(&obj1);
+  unpin_variable((void **)&obj3);
+  unpin_variable((void **)&obj2);
+  unpin_variable((void **)&obj1);
 
   printf("END CODE TESTS\n");
 }
@@ -892,7 +892,7 @@ void run_file_tests(char *fname) {
   }
 
   Object *result = s_nil;
-  pin_variable(&result);
+  pin_variable((void **)&result);
 
   while (result != NULL) {
     printf("\n----\nREAD from file\n");
@@ -909,7 +909,7 @@ void run_file_tests(char *fname) {
     printf("\n");
   }
 
-  unpin_variable(&result);
+  unpin_variable((void **)&result);
 
   fclose(fp);
   printf("END FILE TESTS\n");
@@ -960,23 +960,23 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef FILE_TEST
-  /* run_file_tests("./test1.lsp"); */
-  /* run_file_tests("./test2.lsp"); */
-  /* run_file_tests("./test3.lsp"); */
-  /* run_file_tests("./test4.lsp"); */
-  /* run_file_tests("./test5.lsp"); */
-  /* run_file_tests("./test6.lsp"); */
-  /* run_file_tests("./testP.lsp"); */
+  run_file_tests("./test1.lsp");
+  run_file_tests("./test2.lsp");
+  run_file_tests("./test3.lsp");
+  run_file_tests("./test4.lsp");
+  run_file_tests("./test5.lsp");
+  run_file_tests("./test6.lsp");
+  run_file_tests("./testP.lsp");
   run_file_tests("./testQ.lsp");
-  /* run_file_tests("./testR.lsp"); */
-  /* run_file_tests("./testS.lsp"); */
-  /* run_file_tests("./testT.lsp"); */
-  /* run_file_tests("./testU.lsp"); */
-  /* run_file_tests("./testV.lsp"); */
-  /* run_file_tests("./testW.lsp"); */
-  /* run_file_tests("./testX.lsp"); */
-  /* run_file_tests("./testY.lsp"); */
-  /* run_file_tests("./testZ.lsp"); */
+  run_file_tests("./testR.lsp");
+  run_file_tests("./testS.lsp");
+  run_file_tests("./testT.lsp");
+  run_file_tests("./testU.lsp");
+  run_file_tests("./testV.lsp");
+  run_file_tests("./testW.lsp");
+  run_file_tests("./testX.lsp");
+  run_file_tests("./testY.lsp");
+  run_file_tests("./testZ.lsp");
 #endif
 
 #ifdef REPL

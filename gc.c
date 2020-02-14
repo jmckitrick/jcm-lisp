@@ -22,7 +22,7 @@ void print_pins() {
   printf("Done.\n");
 }
 
-void pin_variable(Object **obj) {
+void pin_variable(void **obj) {
 
 #ifdef GC_PIN_DEBUG
   printf("Pin\n");
@@ -33,7 +33,7 @@ void pin_variable(Object **obj) {
   pinned_var = calloc(1, sizeof(struct PinnedVariable));
   assert(pinned_var != NULL);
 
-  pinned_var->variable = obj;
+  pinned_var->variable = (void **)obj;
   pinned_var->inUse = 1;
   pinned_var->next = pinned_variables;
 
@@ -52,13 +52,13 @@ void pin_variable(Object **obj) {
 #endif //GC_PIN_DEBUG_X
 }
 #else
-void pin_variable(Object **obj) { // void
+void pin_variable(void **obj) { // void
   printf("PIN\n");
 }
 #endif // GC_PIN
 
 #ifdef GC_PIN
-void unpin_variable(Object **obj) {
+void unpin_variable(void **obj) {
 
 #ifdef GC_PIN_DEBUG
   printf("< obj %p\n", obj);
@@ -67,7 +67,7 @@ void unpin_variable(Object **obj) {
   struct PinnedVariable **v = NULL;
   for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
 
-    if ((*v)->variable == obj) {
+    if ((*v)->variable == (void **)obj) {
 
 #ifdef GC_PIN_DEBUG
       printf("Containing: ");
@@ -373,7 +373,7 @@ Object *find_next_free() {
   return obj;
 }
 
-Object *alloc_Object() {
+void *alloc_Object() {
   Object *obj = find_next_free();
 
   if (obj == NULL) {

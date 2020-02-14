@@ -18,10 +18,7 @@
 #include <assert.h>
 #include <sys/errno.h>
 
-#define MAX_BUFFER_SIZE 100
-#define MAX_ALLOC_SIZE  1024
-
-#define CODE_TEST
+//#define CODE_TEST
 #define FILE_TEST
 //#define REPL
 

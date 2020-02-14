@@ -18,6 +18,9 @@
 #include <assert.h>
 #include <sys/errno.h>
 
+#define MAX_BUFFER_SIZE 100
+#define MAX_ALLOC_SIZE  1024
+
 #define GC_ENABLED
 #define GC_MARK
 #define GC_SWEEP
@@ -36,7 +39,7 @@ int current_mark;
 
 #ifdef GC_PIN
 struct PinnedVariable {
-  Object **variable;
+  void **variable;
   struct PinnedVariable *next;
   int inUse;
 };
@@ -45,11 +48,11 @@ struct PinnedVariable *pinned_variables;
 
 #endif //GC_PIN
 
-void pin_variable(Object **obj);
-void unpin_variable(Object **obj);
+void pin_variable(void **obj);
+void unpin_variable(void **obj);
 
 #ifdef GC_ENABLED
-Object *alloc_Object();
+void *alloc_Object();
 void gc();
 void error(char *msg);
 #endif // GC_ENABLED
