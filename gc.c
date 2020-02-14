@@ -91,7 +91,7 @@ void unpin_variable(void **obj) {
   assert(0);
 }
 #else
-void unpin_variable(Object *variable) { // void
+void unpin_variable(void *variable) { // void
   printf("UNPIN %p\n", variable);
   print(variable);
   printf("\n");
@@ -99,7 +99,7 @@ void unpin_variable(Object *variable) { // void
 #endif // GC_PIN
 
 #ifdef GC_ENABLED
-void mark(Object *obj) {
+void mark(void *obj) {
   if (obj == NULL) {
 #ifdef GC_DEBUG
     printf("\nNothing to mark: NULL");
@@ -107,7 +107,7 @@ void mark(Object *obj) {
     return;
   }
 #ifdef GC_DEBUG_XX
-  Object *temp = obj; printf("\nMarking %p\n", temp);
+  void *temp = obj; printf("\nMarking %p\n", temp);
 #endif // GC_DEBUG_XX
   if (obj->mark > 0) {
 #ifdef GC_DEBUG_XX
@@ -178,7 +178,7 @@ void mark(Object *obj) {
   }
 }
 
-int is_active(Object *needle) {
+int is_active(void *needle) {
   for (int i = 0; i <= MAX_ALLOC_SIZE; i++) {
     if (active_list[i] == needle)
       return 1;
@@ -192,7 +192,7 @@ void sweep() {
   int cells = 0;
 
   for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
-    Object *obj = active_list[i];
+    void *obj = active_list[i];
 
     if (obj == NULL)
       continue;
@@ -337,7 +337,7 @@ void gc() {
     printf("Pointer to pointer to object: %p\n", (*v)->variable);
     printf("Pointer to object: %p\n", *(*v)->variable);
 
-    Object *tempObj = (Object *)(*(*v)->variable);
+    void *tempObj = (void *)(*(*v)->variable);
     if (tempObj != NULL) {
       print(tempObj);
       mark(tempObj);
@@ -357,8 +357,8 @@ void gc() {
   printf("\nGC ^----------------------------------------^\n");
 }
 
-Object *find_next_free() {
-  Object *obj = NULL;
+void *find_next_free() {
+  void *obj = NULL;
 
   for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
     obj = free_list[i];
@@ -374,7 +374,7 @@ Object *find_next_free() {
 }
 
 void *alloc_Object() {
-  Object *obj = find_next_free();
+  void *obj = find_next_free();
 
   if (obj == NULL) {
     //print_pins();
