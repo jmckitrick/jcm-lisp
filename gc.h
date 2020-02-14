@@ -7,6 +7,17 @@
  *
  */
 
+//#define _GNU_SOURCE
+
+#include <stdio.h>
+
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <assert.h>
+#include <sys/errno.h>
+
 #define GC_ENABLED
 #define GC_MARK
 #define GC_SWEEP
@@ -18,8 +29,8 @@
 //#define GC_PIN_DEBUG
 //#define GC_PIN_DEBUG_X
 
-Object *free_list[MAX_ALLOC_SIZE];
-Object *active_list[MAX_ALLOC_SIZE];
+void *free_list[MAX_ALLOC_SIZE];
+void *active_list[MAX_ALLOC_SIZE];
 
 int current_mark;
 
