@@ -7,32 +7,12 @@
  *
  */
 
-#define _GNU_SOURCE
-#include <stdio.h>
 
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <ctype.h>
-#include <assert.h>
-#include <sys/errno.h>
 
 #define MAX_BUFFER_SIZE 100
-
 #define MAX_ALLOC_SIZE  1024
 
-#define GC_ENABLED
-#define GC_MARK
-#define GC_SWEEP
-#define GC_PIN
-
-#define GC_DEBUG
-//#define GC_DEBUG_X
-//#define GC_DEBUG_XX
-//#define GC_PIN_DEBUG
-//#define GC_PIN_DEBUG_X
-
-//#define CODE_TEST
+#define CODE_TEST
 #define FILE_TEST
 //#define REPL
 
@@ -103,33 +83,9 @@ Object *s_if;
 Object *s_t;
 Object *s_lambda;
 
-Object *free_list[MAX_ALLOC_SIZE];
-Object *active_list[MAX_ALLOC_SIZE];
 Object *env;
-
-int current_mark;
-
-#ifdef GC_PIN
-struct PinnedVariable {
-  Object **variable;
-  struct PinnedVariable *next;
-  int inUse;
-};
-
-struct PinnedVariable *pinned_variables;
-
-#endif //GC_PIN
-
-void pin_variable(Object **obj);
-void unpin_variable(Object **obj);
 
 #define caar(obj)    car(car(obj))
 #define cadr(obj)    car(cdr(obj))
 
 Object *read_list(FILE *);
-
-#ifdef GC_ENABLED
-Object *alloc_Object();
-void gc();
-void error(char *msg);
-#endif // GC_ENABLED

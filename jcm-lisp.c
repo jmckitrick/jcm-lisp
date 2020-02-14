@@ -7,7 +7,19 @@
  *
  */
 
+#define _GNU_SOURCE
+
+#include <stdio.h>
+
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <assert.h>
+#include <sys/errno.h>
+
 #include "jcm-lisp.h"
+#include "gc.h"
 
 void error(char *msg) {
   printf("\nError %s\n", msg);
