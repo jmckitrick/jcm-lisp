@@ -99,7 +99,7 @@ void unpin_variable(void *variable) { // void
 #endif // GC_PIN
 
 #ifdef GC_ENABLED
-void mark(void *obj) {
+void mark(Object *obj) {
   if (obj == NULL) {
 #ifdef GC_DEBUG
     printf("\nNothing to mark: NULL");
@@ -192,7 +192,7 @@ void sweep() {
   int cells = 0;
 
   for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
-    void *obj = active_list[i];
+    Object *obj = active_list[i];
 
     if (obj == NULL)
       continue;
