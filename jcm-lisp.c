@@ -960,23 +960,23 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef FILE_TEST
-  run_file_tests("./test1.lsp");
-  run_file_tests("./test2.lsp");
-  run_file_tests("./test3.lsp");
-  run_file_tests("./test4.lsp");
-  run_file_tests("./test5.lsp");
-  run_file_tests("./test6.lsp");
-  run_file_tests("./testP.lsp");
+  /* run_file_tests("./test1.lsp"); */
+  /* run_file_tests("./test2.lsp"); */
+  /* run_file_tests("./test3.lsp"); */
+  /* run_file_tests("./test4.lsp"); */
+  /* run_file_tests("./test5.lsp"); */
+  /* run_file_tests("./test6.lsp"); */
+//  run_file_tests("./testP.lsp");
   run_file_tests("./testQ.lsp");
-  run_file_tests("./testR.lsp");
-  run_file_tests("./testS.lsp");
-  run_file_tests("./testT.lsp");
-  run_file_tests("./testU.lsp");
-  run_file_tests("./testV.lsp");
-  run_file_tests("./testW.lsp");
-  run_file_tests("./testX.lsp");
-  run_file_tests("./testY.lsp");
-  run_file_tests("./testZ.lsp");
+  /* run_file_tests("./testR.lsp"); */
+  /* run_file_tests("./testS.lsp"); */
+  /* run_file_tests("./testT.lsp"); */
+  /* run_file_tests("./testU.lsp"); */
+  /* run_file_tests("./testV.lsp"); */
+  /* run_file_tests("./testW.lsp"); */
+  /* run_file_tests("./testX.lsp"); */
+  /* run_file_tests("./testY.lsp"); */
+  /* run_file_tests("./testZ.lsp"); */
 #endif
 
 #ifdef REPL
