@@ -489,16 +489,21 @@ void print_env(Object *env) {
   printf("\nEnv entry: ");
 
   Object *head = car(env);
-  print(head);
-  printf(" at %p:\n", head);
+  //if (*head != s_nil) {
+    print(head);
+    printf(" at %p:\n", head);
+//}
 
   Object *tail = cdr(env);
 
   if (tail != s_nil) {
+    /* printf("\n"); */
+    /* print(tail); */
+    /* printf(" at %p:\n", tail); */
     print_env(tail);
   }
 
-  //printf("Done.\n");
+//printf("Done.\n");
 }
 
 
@@ -539,8 +544,8 @@ Object *progn(Object *forms, Object *env) {
       print(car(forms));
       printf("\n");
       Object *temp = eval(car(forms), env);
-      //printf("\n------------------> End of progn\n");
-      //print_env(env);
+      printf("\n------------------> End of progn\n");
+      print_env(env);
       return temp;
 
       //return eval(car(forms), env);
@@ -692,7 +697,7 @@ Object *eval_list(Object *obj, Object *env) {
   Object *proc = eval(car(obj), env);
   Object *args = eval_args(cdr(obj), env);
 
-  printf("Assuming proc\n");
+  printf("Assuming proc env\n");
   print_env(env);
   printf("\n");
   return apply(proc, args, env);
@@ -941,7 +946,7 @@ int main(int argc, char* argv[]) {
    * and changing the env does not require
    * returning a new head.
    */
-  env = cons(cons(s_nil, s_nil), s_nil);
+  env = cons(s_nil, cons(s_nil, s_nil));
   extend_env(env, s_t, s_t);
 
   extend_env(env, intern_symbol("cons"), make_primitive(prim_cons));
@@ -966,8 +971,11 @@ int main(int argc, char* argv[]) {
   /* run_file_tests("./test4.lsp"); */
   /* run_file_tests("./test5.lsp"); */
   /* run_file_tests("./test6.lsp"); */
-//  run_file_tests("./testP.lsp");
-  run_file_tests("./testQ.lsp");
+  /* run_file_tests("./testP.lsp"); */
+  /* run_file_tests("./testP1.lsp"); */
+  /* run_file_tests("./testP2.lsp"); */
+  run_file_tests("./testP3.lsp");
+  /* run_file_tests("./testQ.lsp"); */
   /* run_file_tests("./testR.lsp"); */
   /* run_file_tests("./testS.lsp"); */
   /* run_file_tests("./testT.lsp"); */
