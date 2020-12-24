@@ -887,7 +887,7 @@ void run_code_tests() {
 }
 
 void run_file_tests(char *fname) {
-  printf("\n\n--------------------BEGIN FILE TESTS: %s\n", fname);
+  printf("\n\n----------------------------------------BEGIN FILE TESTS: %s\n", fname);
 
   FILE *fp = fopen(fname, "r");
 
@@ -900,18 +900,20 @@ void run_file_tests(char *fname) {
   pin_variable((void **)&result);
 
   while (result != NULL) {
-    printf("\n----\nREAD from file\n");
+    printf("\n----\nREAD line from file\n");
     result = read_lisp(fp);
-    printf("After read:\n");
-    print(result);
-    printf("\n----\nEVALUATE from file\n");
-    printf("Before eval:\n");
-    print(result);
-    printf("\n");
-    result = eval(result, env);
-    printf("After eval:\n");
-    print(result);
-    printf("\n");
+    if (result != s_nil) {
+      printf("After read:\n");
+      print(result);
+      printf("\n----\nEVALUATE from file\n");
+      printf("Before eval:\n");
+      print(result);
+      printf("\n");
+      result = eval(result, env);
+      printf("After eval:\n");
+      print(result);
+      printf("\n");
+    }
   }
 
   unpin_variable((void **)&result);
@@ -974,8 +976,10 @@ int main(int argc, char* argv[]) {
   /* run_file_tests("./testP.lsp"); */
   /* run_file_tests("./testP1.lsp"); */
   /* run_file_tests("./testP2.lsp"); */
-  run_file_tests("./testP3.lsp");
+  /* run_file_tests("./testP3.lsp"); */
   /* run_file_tests("./testQ.lsp"); */
+  /* run_file_tests("./testQ2.lsp"); */
+  run_file_tests("./testQ3.lsp");
   /* run_file_tests("./testR.lsp"); */
   /* run_file_tests("./testS.lsp"); */
   /* run_file_tests("./testT.lsp"); */
