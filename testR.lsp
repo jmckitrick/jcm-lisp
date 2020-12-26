@@ -3,7 +3,6 @@
        (lambda (increment)
          (setq total (+ total increment))
          total))
-     0
-     ))
-
+     1))
+(count 2)
 (count 3)

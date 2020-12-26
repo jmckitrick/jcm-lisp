@@ -89,7 +89,7 @@ Object *s_if;
 Object *s_t;
 Object *s_lambda;
 
-Object *env;
+Object *top_env;
 
 #define caar(obj)    car(car(obj))
 #define cadr(obj)    car(cdr(obj))

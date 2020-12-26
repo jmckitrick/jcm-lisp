@@ -318,8 +318,8 @@ void gc() {
   printf("\n-------- Mark symbols:");
   mark(symbols);
 
-  printf("\n-------- Mark env:");
-  mark(env);
+  printf("\n-------- Mark top_env:");
+  mark(top_env);
 
 #ifdef GC_PIN
   printf("\n-------- Mark pins:\n");

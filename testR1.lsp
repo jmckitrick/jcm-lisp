@@ -1,8 +1,8 @@
 (define count
-    (
-     (lambda (acc)
+    ((lambda (acc)
        acc
        )
      2
      )
   )
+count

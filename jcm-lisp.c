@@ -182,7 +182,7 @@ Object *make_proc(Object *vars, Object *body, Object *env) {
   obj->proc.body = body;
   obj->proc.env = env;
   unpin_variable((void **)&obj);
-  printf("Made proc.\n");
+  //printf("Made proc.\n");
   return obj;
 }
 
@@ -506,7 +506,7 @@ void print_env(Object *env) {
     print_env(tail);
   }
 
-//printf("Done.\n");
+  //printf("Done.\n");
 }
 
 
@@ -514,11 +514,11 @@ void print_env(Object *env) {
  * Set the tail of this env to a new list
  * with var and val at the head.
  */
-Object *extend_env(Object* env, Object *var, Object *val) {
-  Object *current_env = cdr(env);
-  Object *updated_env = extend(current_env, var, val);
+Object *extend_top(Object* env, Object *var, Object *val) {
+  Object *current_top = cdr(top_env);
+  Object *updated_top = extend(current_top, var, val);
 
-  setcdr(env, updated_env);
+  setcdr(top_env, updated_top);
 
   return val;
 }
@@ -547,8 +547,8 @@ Object *progn(Object *forms, Object *env) {
       print(car(forms));
       printf("\n");
       Object *temp = eval(car(forms), env);
-      printf("\n------------------> End of progn:\n");
-      print_env(env);
+      //printf("\n------------------> End of progn:\n");
+      //print_env(env);
       return temp;
 
       //return eval(car(forms), env);
@@ -577,12 +577,14 @@ Object *apply(Object *obj, Object *args, Object *env) {
   printf("Apply\n");
   //print_env(env);
 
-  if (is_primitive(obj))
+  if (is_primitive(obj)) {
+    //printf("Boring prim\n");
     return (*obj->primitive.fn)(args);
+  }
 
   if (is_proc(obj)) {
-    printf("Look out!\n");
-    return progn(obj->proc.body, multiple_extend_env(env, obj->proc.vars, args));
+    //printf("Look out!\n");
+    return progn(obj->proc.body, multiple_extend_env(obj->proc.env, obj->proc.vars, args));
   }
 
   // If this is neither a primitive function nor a proc,
@@ -640,7 +642,7 @@ Object *eval_list(Object *obj, Object *env) {
       print(cell_symbol);
       printf("\n");
       Object *var = cell_symbol;
-      return extend_env(env, var, val);
+      return extend_top(env, var, val);
     } else {
       setcdr(pair, val);
 
@@ -692,9 +694,9 @@ Object *eval_list(Object *obj, Object *env) {
     Object *vars = car(cdr(obj));
     Object *body = cdr(cdr(obj));
 
-    printf("Create lambda with env:\n");
-    print_env(env);
-    printf("\n");
+    //printf("Create lambda with env:\n");
+    //print_env(env);
+    //printf("\n");
     return make_proc(vars, body, env);
   }
 
@@ -713,11 +715,11 @@ Object *eval(Object *obj, Object *env) {
   if (obj == NULL)
     return obj;
 
-  printf("Eval:\n");
-  print(obj);
-  printf(" with env %p:\n", env);
-  print_env(env);
-  printf("env done.\n");
+  // printf("Eval:\n");
+  // print(obj);
+  // printf(" with env %p:\n", env);
+  // print_env(env);
+  // printf("env done.\n");
 
   Object *result = s_nil;
 
@@ -917,7 +919,7 @@ void run_file_tests(char *fname) {
       printf("Before eval:\n");
       print(result);
       printf("\n");
-      result = eval(result, env);
+      result = eval(result, top_env);
       printf("After eval:\n");
       print(result);
       printf("\n");
@@ -956,49 +958,49 @@ int main(int argc, char* argv[]) {
    * and changing the env does not require
    * returning a new head.
    */
-  env = cons(cons(s_nil, s_nil), s_nil);
-  extend_env(env, s_t, s_t);
+  top_env = cons(cons(s_nil, s_nil), s_nil);
 
-  extend_env(env, intern_symbol("cons"), make_primitive(prim_cons));
-  extend_env(env, intern_symbol("car"), make_primitive(prim_car));
-  extend_env(env, intern_symbol("cdr"), make_primitive(prim_cdr));
+  extend_top(top_env, intern_symbol("cons"), make_primitive(prim_cons));
+  extend_top(top_env, intern_symbol("car"), make_primitive(prim_car));
+  extend_top(top_env, intern_symbol("cdr"), make_primitive(prim_cdr));
 
-  extend_env(env, intern_symbol("eq"), make_primitive(primitive_eq));
+  extend_top(top_env, intern_symbol("eq"), make_primitive(primitive_eq));
 
-  extend_env(env, intern_symbol("+"), make_primitive(primitive_add));
-  extend_env(env, intern_symbol("-"), make_primitive(primitive_sub));
-  extend_env(env, intern_symbol("*"), make_primitive(primitive_mul));
-  extend_env(env, intern_symbol("/"), make_primitive(primitive_div));
+  extend_top(top_env, intern_symbol("+"), make_primitive(primitive_add));
+  extend_top(top_env, intern_symbol("-"), make_primitive(primitive_sub));
+  extend_top(top_env, intern_symbol("*"), make_primitive(primitive_mul));
+  extend_top(top_env, intern_symbol("/"), make_primitive(primitive_div));
 
 #ifdef CODE_TEST
   run_code_tests();
 #endif
 
 #ifdef FILE_TEST
-  /* run_file_tests("./test1.lsp"); */
-  /* run_file_tests("./test2.lsp"); */
-  /* run_file_tests("./test3.lsp"); */
-  /* run_file_tests("./test4.lsp"); */
-  /* run_file_tests("./test5.lsp"); */
-  /* run_file_tests("./test6.lsp"); */
-  /* run_file_tests("./testP.lsp"); */
-  /* run_file_tests("./testP1.lsp"); */
-  /* run_file_tests("./testP2.lsp"); */
-  /* run_file_tests("./testP3.lsp"); */
-  /* run_file_tests("./testQ.lsp"); */
-  /* run_file_tests("./testQ2.lsp"); */
-  /* run_file_tests("./testQ3.lsp"); */
-  /* run_file_tests("./testR.lsp"); */
-  /* run_file_tests("./testR1.lsp"); */
+  run_file_tests("./test0.lsp");
+  run_file_tests("./test1.lsp");
+  run_file_tests("./test2.lsp");
+  run_file_tests("./test3.lsp");
+  run_file_tests("./test4.lsp");
+  run_file_tests("./test5.lsp");
+  run_file_tests("./test6.lsp");
+  run_file_tests("./testP.lsp");
+  run_file_tests("./testP1.lsp");
+  run_file_tests("./testP2.lsp");
+  run_file_tests("./testP3.lsp");
+  run_file_tests("./testQ.lsp");
+  run_file_tests("./testQ2.lsp");
+  run_file_tests("./testQ3.lsp");
+  run_file_tests("./testR.lsp");
+  run_file_tests("./testR1.lsp");
   run_file_tests("./testR2.lsp");
-  /* run_file_tests("./testS.lsp"); */
-  /* run_file_tests("./testT.lsp"); */
-  /* run_file_tests("./testU.lsp"); */
-  /* run_file_tests("./testV.lsp"); */
-  /* run_file_tests("./testW.lsp"); */
-  /* run_file_tests("./testX.lsp"); */
-  /* run_file_tests("./testY.lsp"); */
-  /* run_file_tests("./testZ.lsp"); */
+  run_file_tests("./testS.lsp");
+  run_file_tests("./testT.lsp");
+  run_file_tests("./testU.lsp");
+  run_file_tests("./testV.lsp");
+  run_file_tests("./testW.lsp");
+  run_file_tests("./testX.lsp");
+  run_file_tests("./testY.lsp");
+  run_file_tests("./testZ.lsp");
 #endif
 
 #ifdef REPL
@@ -1009,7 +1011,7 @@ int main(int argc, char* argv[]) {
 
     printf("> ");
     result = read_lisp(stdin);
-    result = eval(result, env);
+    result = eval(result, top_env);
     print(result);
     printf("\n");
   }
