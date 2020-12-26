@@ -80,7 +80,8 @@ void setcdr(Object *obj, Object *val) {
   if (obj == NULL)
     error("Cannot set NULL cdr");
 
-  if (obj->cell.cdr != NULL && obj->cell.cdr != s_nil) {
+  if (obj->cell.cdr != NULL &&
+      obj->cell.cdr != s_nil) {
     //printf("Changing %p -> cdr %p to %p\n", obj, obj->cell.cdr, val);
   }
 
@@ -181,7 +182,7 @@ Object *make_proc(Object *vars, Object *body, Object *env) {
   obj->proc.body = body;
   obj->proc.env = env;
   unpin_variable((void **)&obj);
-  printf("Made proc\n");
+  printf("Made proc.\n");
   return obj;
 }
 
@@ -250,8 +251,10 @@ Object *assoc(Object *key, Object *list) {
     /* printf("Assoc check '%s' vs '%s'\n", car(pair)->symbol.name, key->symbol.name); */
     printf("Assoc check '%s' vs '%s'\n", key->symbol.name, car(pair)->symbol.name);
     /* printf("\nAssoc check %p vs %p\n", car(pair), key); */
-    if (car(pair) == key)
+    if (car(pair) == key) {
+      printf("Found '%s'!\n", key->symbol.name);
       return pair;
+    }
 
     //printf("Still looking....\n");
     return assoc(key, cdr(list));
@@ -465,8 +468,8 @@ Object *read_list(FILE *in) {
 
 /*
  * Returns a list with a new cons cell
- * containing var and val at the head
- * and the existing env in the tail.
+ * containing VAR and VAL at the head
+ * and the existing ENV in the tail.
  */
 Object *extend(Object *env, Object *var, Object *val) {
   Object *pair = NULL;
@@ -486,13 +489,13 @@ Object *extend(Object *env, Object *var, Object *val) {
 }
 
 void print_env(Object *env) {
-  printf("\nEnv entry: ");
-
   Object *head = car(env);
-  //if (*head != s_nil) {
+
+  if (head != s_nil) {
+    printf("Env entry: ");
     print(head);
-    printf(" at %p:\n", head);
-//}
+    printf(" at %p\n", head);
+  }
 
   Object *tail = cdr(env);
 
@@ -544,7 +547,7 @@ Object *progn(Object *forms, Object *env) {
       print(car(forms));
       printf("\n");
       Object *temp = eval(car(forms), env);
-      printf("\n------------------> End of progn\n");
+      printf("\n------------------> End of progn:\n");
       print_env(env);
       return temp;
 
@@ -577,8 +580,10 @@ Object *apply(Object *obj, Object *args, Object *env) {
   if (is_primitive(obj))
     return (*obj->primitive.fn)(args);
 
-  if (is_proc(obj))
+  if (is_proc(obj)) {
+    printf("Look out!\n");
     return progn(obj->proc.body, multiple_extend_env(env, obj->proc.vars, args));
+  }
 
   // If this is neither a primitive function nor a proc,
   // we are in a bad state.
@@ -687,7 +692,7 @@ Object *eval_list(Object *obj, Object *env) {
     Object *vars = car(cdr(obj));
     Object *body = cdr(cdr(obj));
 
-    printf("Lambda with env:\n");
+    printf("Create lambda with env:\n");
     print_env(env);
     printf("\n");
     return make_proc(vars, body, env);
@@ -697,9 +702,10 @@ Object *eval_list(Object *obj, Object *env) {
   Object *proc = eval(car(obj), env);
   Object *args = eval_args(cdr(obj), env);
 
-  printf("Assuming proc env\n");
-  print_env(env);
-  printf("\n");
+  //printf("Fall-through assuming proc (apply).\n");
+  printf("Fall-through assuming proc with env %p:\n", env);
+  //print_env(env);
+  //printf("\n");
   return apply(proc, args, env);
 }
 
@@ -707,10 +713,11 @@ Object *eval(Object *obj, Object *env) {
   if (obj == NULL)
     return obj;
 
-  printf("Eval\n");
+  printf("Eval:\n");
   print(obj);
-  printf(" with env \n");
+  printf(" with env %p:\n", env);
   print_env(env);
+  printf("env done.\n");
 
   Object *result = s_nil;
 
@@ -839,6 +846,7 @@ Object *primitive_eq(Object *args) {
     return s_nil;
 }
 
+/* Set up object allocation space. */
 void init() {
 
 #ifdef GC_ENABLED
@@ -932,8 +940,8 @@ int main(int argc, char* argv[]) {
   /*           'nil'   EOL  */
   /*             |      |   */
   /*             v      v   */
-  //symbols = cons(NULL, NULL);
   symbols = cons(s_nil, s_nil);
+  //symbols = cons(NULL, NULL);
 
   s_t = intern_symbol("t");
   s_lambda = intern_symbol("lambda");
@@ -948,7 +956,7 @@ int main(int argc, char* argv[]) {
    * and changing the env does not require
    * returning a new head.
    */
-  env = cons(s_nil, cons(s_nil, s_nil));
+  env = cons(cons(s_nil, s_nil), s_nil);
   extend_env(env, s_t, s_t);
 
   extend_env(env, intern_symbol("cons"), make_primitive(prim_cons));
@@ -979,8 +987,10 @@ int main(int argc, char* argv[]) {
   /* run_file_tests("./testP3.lsp"); */
   /* run_file_tests("./testQ.lsp"); */
   /* run_file_tests("./testQ2.lsp"); */
-  run_file_tests("./testQ3.lsp");
+  /* run_file_tests("./testQ3.lsp"); */
   /* run_file_tests("./testR.lsp"); */
+  /* run_file_tests("./testR1.lsp"); */
+  run_file_tests("./testR2.lsp");
   /* run_file_tests("./testS.lsp"); */
   /* run_file_tests("./testT.lsp"); */
   /* run_file_tests("./testU.lsp"); */

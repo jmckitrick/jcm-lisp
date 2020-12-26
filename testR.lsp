@@ -1,8 +1,9 @@
 (define count
-  ((lambda (total)
-     (lambda (increment)
-       (setq total (+ total increment))
-       total))
-   0))
+    ((lambda (total)
+       (lambda (increment)
+         (setq total (+ total increment))
+         total))
+     0
+     ))
 
-(count 5)
+(count 3)
