@@ -249,10 +249,10 @@ Object *assoc(Object *key, Object *list) {
     /* printf("pair:\n"); */
     /* print(pair); */
     /* printf("Assoc check '%s' vs '%s'\n", car(pair)->symbol.name, key->symbol.name); */
-    printf("Assoc check '%s' vs '%s'\n", key->symbol.name, car(pair)->symbol.name);
+    //printf("Assoc check '%s' vs '%s'\n", key->symbol.name, car(pair)->symbol.name);
     /* printf("\nAssoc check %p vs %p\n", car(pair), key); */
     if (car(pair) == key) {
-      printf("Found '%s'!\n", key->symbol.name);
+      //printf("Found '%s'!\n", key->symbol.name);
       return pair;
     }
 
@@ -574,7 +574,7 @@ Object *multiple_extend_env(Object *env, Object *vars, Object *vals) {
 }
 
 Object *apply(Object *obj, Object *args, Object *env) {
-  printf("Apply\n");
+  //printf("Apply\n");
   //print_env(env);
 
   if (is_primitive(obj)) {
@@ -589,7 +589,7 @@ Object *apply(Object *obj, Object *args, Object *env) {
 
   // If this is neither a primitive function nor a proc,
   // we are in a bad state.
-  printf("Dumping %s:\n", get_type(obj));
+  printf("Bad apply: Dumping %s:\n", get_type(obj));
   print(obj);
   printf("\n");
 
@@ -705,7 +705,7 @@ Object *eval_list(Object *obj, Object *env) {
   Object *args = eval_args(cdr(obj), env);
 
   //printf("Fall-through assuming proc (apply).\n");
-  printf("Fall-through assuming proc with env %p:\n", env);
+  //printf("Fall-through assuming proc with env %p:\n", env);
   //print_env(env);
   //printf("\n");
   return apply(proc, args, env);
