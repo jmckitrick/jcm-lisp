@@ -514,7 +514,7 @@ void print_env(Object *env) {
  * Set the tail of this env to a new list
  * with var and val at the head.
  */
-Object *extend_top(Object* env, Object *var, Object *val) {
+Object *extend_top(Object *var, Object *val) {
   Object *current_top = cdr(top_env);
   Object *updated_top = extend(current_top, var, val);
 
@@ -642,7 +642,7 @@ Object *eval_list(Object *obj, Object *env) {
       print(cell_symbol);
       printf("\n");
       Object *var = cell_symbol;
-      return extend_top(env, var, val);
+      return extend_top(var, val);
     } else {
       setcdr(pair, val);
 
@@ -958,18 +958,18 @@ int main(int argc, char* argv[]) {
    * and changing the env does not require
    * returning a new head.
    */
-  top_env = cons(cons(s_nil, s_nil), s_nil);
+  top_env = cons(s_nil, cons(s_nil, s_nil));
 
-  extend_top(top_env, intern_symbol("cons"), make_primitive(prim_cons));
-  extend_top(top_env, intern_symbol("car"), make_primitive(prim_car));
-  extend_top(top_env, intern_symbol("cdr"), make_primitive(prim_cdr));
+  extend_top(intern_symbol("cons"), make_primitive(prim_cons));
+  extend_top(intern_symbol("car"), make_primitive(prim_car));
+  extend_top(intern_symbol("cdr"), make_primitive(prim_cdr));
 
-  extend_top(top_env, intern_symbol("eq"), make_primitive(primitive_eq));
+  extend_top(intern_symbol("eq"), make_primitive(primitive_eq));
 
-  extend_top(top_env, intern_symbol("+"), make_primitive(primitive_add));
-  extend_top(top_env, intern_symbol("-"), make_primitive(primitive_sub));
-  extend_top(top_env, intern_symbol("*"), make_primitive(primitive_mul));
-  extend_top(top_env, intern_symbol("/"), make_primitive(primitive_div));
+  extend_top(intern_symbol("+"), make_primitive(primitive_add));
+  extend_top(intern_symbol("-"), make_primitive(primitive_sub));
+  extend_top(intern_symbol("*"), make_primitive(primitive_mul));
+  extend_top(intern_symbol("/"), make_primitive(primitive_div));
 
 #ifdef CODE_TEST
   run_code_tests();
