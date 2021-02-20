@@ -689,10 +689,10 @@ Object *eval_list(Object *obj, Object *env) {
       return eval(cell_false_branch, env);
 
   } else if (car(obj) == s_quote) {
-    return car(cdr(obj));
+    return cadr(obj);
   } else if (car(obj) == s_lambda) {
-    Object *vars = car(cdr(obj));
-    Object *body = cdr(cdr(obj));
+    Object *vars = cadr(obj);
+    Object *body = cddr(obj);
 
     //printf("Create lambda with env:\n");
     //print_env(env);
@@ -818,15 +818,15 @@ void print(Object *obj) {
 }
 
 Object *prim_cons(Object *args) {
-  return cons(car(args), car(cdr(args)));
+  return cons(car(args), cadr(args));
 }
 
 Object *prim_car(Object *args) {
-  return car(car(args));
+  return caar(args);
 }
 
 Object *prim_cdr(Object *args) {
-  return cdr(car(args));
+  return cdar(args);
 }
 
 Object *primitive_eq_num(Object *a, Object *b) {
