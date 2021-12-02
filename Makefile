@@ -1,5 +1,6 @@
 CC     = cc
-CFLAGS = -Wall -g -O0
+#CFLAGS = -Wall -g -Og
+CFLAGS = -Wall -g -Os
 DEPS   = jcm-lisp.h gc.h
 OBJ    = jcm-lisp.o gc.o
 
@@ -15,5 +16,6 @@ jcm-lisp: $(OBJ)
 
 .PHONY:	clean
 clean:
+	rm jcm-lisp
 	rm -f *.o
 	rm -rf *.dSYM

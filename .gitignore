@@ -2,4 +2,4 @@ jcm-lisp
 TAGS
 *.dSYM
 *.o
-
+*.s
