@@ -26,7 +26,7 @@
 #define GC_SWEEP
 #define GC_PIN
 
-#define GC_DEBUG
+//#define GC_DEBUG
 //#define GC_DEBUG_X
 //#define GC_DEBUG_XX
 //#define GC_PIN_DEBUG

@@ -943,7 +943,6 @@ int main(int argc, char* argv[]) {
   /*             |      |   */
   /*             v      v   */
   symbols = cons(s_nil, s_nil);
-  //symbols = cons(NULL, NULL);
 
   s_t = intern_symbol("t");
   s_lambda = intern_symbol("lambda");
@@ -976,31 +975,31 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef FILE_TEST
-  run_file_tests("./test0.lsp");
-  run_file_tests("./test1.lsp");
-  run_file_tests("./test2.lsp");
-  run_file_tests("./test3.lsp");
-  run_file_tests("./test4.lsp");
-  run_file_tests("./test5.lsp");
-  run_file_tests("./test6.lsp");
-  run_file_tests("./testP.lsp");
-  run_file_tests("./testP1.lsp");
-  run_file_tests("./testP2.lsp");
-  run_file_tests("./testP3.lsp");
-  run_file_tests("./testQ.lsp");
-  run_file_tests("./testQ2.lsp");
-  run_file_tests("./testQ3.lsp");
-  run_file_tests("./testR.lsp");
-  run_file_tests("./testR1.lsp");
-  run_file_tests("./testR2.lsp");
-  run_file_tests("./testS.lsp");
-  run_file_tests("./testT.lsp");
-  run_file_tests("./testU.lsp");
-  run_file_tests("./testV.lsp");
-  run_file_tests("./testW.lsp");
-  run_file_tests("./testX.lsp");
-  run_file_tests("./testY.lsp");
-  run_file_tests("./testZ.lsp");
+  run_file_tests("./test/test0.lsp");
+  run_file_tests("./test/test1.lsp");
+  run_file_tests("./test/test2.lsp");
+  run_file_tests("./test/test3.lsp");
+  run_file_tests("./test/test4.lsp");
+  run_file_tests("./test/test5.lsp");
+  run_file_tests("./test/test6.lsp");
+  run_file_tests("./test/testP.lsp");
+  run_file_tests("./test/testP1.lsp");
+  run_file_tests("./test/testP2.lsp");
+  run_file_tests("./test/testP3.lsp");
+  run_file_tests("./test/testQ.lsp");
+  run_file_tests("./test/testQ2.lsp");
+  run_file_tests("./test/testQ3.lsp");
+  run_file_tests("./test/testR.lsp");
+  run_file_tests("./test/testR1.lsp");
+  run_file_tests("./test/testR2.lsp");
+  run_file_tests("./test/testS.lsp");
+  run_file_tests("./test/testT.lsp");
+  run_file_tests("./test/testU.lsp");
+  run_file_tests("./test/testV.lsp");
+  run_file_tests("./test/testW.lsp");
+  run_file_tests("./test/testX.lsp");
+  run_file_tests("./test/testY.lsp");
+  run_file_tests("./test/testZ.lsp");
 #endif
 
 #ifdef REPL

@@ -23,7 +23,6 @@ void print_pins() {
 }
 
 void pin_variable(void **obj) {
-
 #ifdef GC_PIN_DEBUG
   printf("Pin\n");
   printf("> obj %p\n", obj);
@@ -53,13 +52,12 @@ void pin_variable(void **obj) {
 }
 #else
 void pin_variable(void **obj) { // void
-  printf("PIN\n");
+  //printf("PIN\n");
 }
 #endif // GC_PIN
 
 #ifdef GC_PIN
 void unpin_variable(void **obj) {
-
 #ifdef GC_PIN_DEBUG
   printf("< obj %p\n", obj);
 #endif //GC_PIN_DEBUG
@@ -91,10 +89,10 @@ void unpin_variable(void **obj) {
   assert(0);
 }
 #else
-void unpin_variable(void *variable) { // void
-  printf("UNPIN %p\n", variable);
-  print(variable);
-  printf("\n");
+void unpin_variable(void **obj) { // void
+  //printf("UNPIN %p\n", obj);
+  //print(obj);
+  //printf("\n");
 }
 #endif // GC_PIN
 
