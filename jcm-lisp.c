@@ -935,7 +935,7 @@ void run_file_tests(char *fname) {
 int main(int argc, char* argv[]) {
   init();
 
-  /* Make symbol nil (end of list). */
+  /* Make symbol 'nil' (end of list). */
   s_nil = make_symbol("nil");
 
   /* Create symbol table.   */
@@ -953,8 +953,8 @@ int main(int argc, char* argv[]) {
 
   /* Create top level environment (list of lists).
    * Head is empty list and should never change,
-   * so global references to env are stable
-   * and changing the env does not require
+   * so global references to top_env are stable
+   * and changing top_env does not require
    * returning a new head.
    */
   top_env = cons(s_nil, cons(s_nil, s_nil));
