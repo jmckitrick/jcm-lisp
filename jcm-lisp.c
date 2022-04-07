@@ -239,28 +239,27 @@ Object *intern_symbol(char *name) {
   return sym;
 }
 
-// BUG: Does not walk list of environments! (?)
-Object *assoc(Object *key, Object *list) {
-  if (list != s_nil) {
+Object *assoc(Object *symbol, Object *env) {
+  if (env != s_nil) {
     /* printf("Assoc:\n"); */
-    /* printf("key:\n"); */
-    /* print(key); */
-    Object *pair = car(list);
+    /* printf("symbol:\n"); */
+    /* print(symbol); */
+    Object *pair = car(env);
     /* printf("pair:\n"); */
     /* print(pair); */
-    /* printf("Assoc check '%s' vs '%s'\n", car(pair)->symbol.name, key->symbol.name); */
-    //printf("Assoc check '%s' vs '%s'\n", key->symbol.name, car(pair)->symbol.name);
-    /* printf("\nAssoc check %p vs %p\n", car(pair), key); */
-    if (car(pair) == key) {
-      //printf("Found '%s'!\n", key->symbol.name);
+    /* printf("Assoc check '%s' vs '%s'\n", car(pair)->symbol.name, symbol->symbol.name); */
+    //printf("Assoc check '%s' vs '%s'\n", symbol->symbol.name, car(pair)->symbol.name);
+    /* printf("\nAssoc check %p vs %p\n", car(pair), symbol); */
+    if (car(pair) == symbol) {
+      //printf("Found '%s'!\n", symbol->symbol.name);
       return pair;
     }
 
     //printf("Still looking....\n");
-    return assoc(key, cdr(list));
+    return assoc(symbol, cdr(env));
   }
 
-  printf("Not found:  '%s'\n", key->symbol.name);
+  printf("Not found:  '%s'\n", symbol->symbol.name);
   return NULL;
 }
 
@@ -395,7 +394,8 @@ Object *read_number(FILE *in) {
   return make_fixnum(number);
 }
 
-// XXX Review these: strchr, strdup, strcmp, strspn, atoi
+// XXX Review these: strchr, strdup, strcmp
+// XXX Use these: strspn, atoi
 Object *read_lisp(FILE *in) {
   Object *obj = s_nil;
   pin_variable((void **)&obj);
@@ -570,7 +570,8 @@ Object *multiple_extend_env(Object *env, Object *vars, Object *vals) {
   if (vars == s_nil)
     return env;
   else
-    return multiple_extend_env(extend(env, car(vars), car(vals)), cdr(vars), cdr(vals));
+    return multiple_extend_env(extend(env, car(vars), car(vals)),
+                               cdr(vars), cdr(vals));
 }
 
 Object *apply(Object *obj, Object *args, Object *env) {
@@ -607,12 +608,12 @@ Object *apply(Object *obj, Object *args, Object *env) {
   return s_nil;
 }
 
-Object *eval_symbol(Object *obj, Object *env) {
-  Object *pair = assoc(obj, env);
+Object *eval_symbol(Object *symbol, Object *env) {
+  Object *pair = assoc(symbol, env);
 
   if (pair == NULL) {
     char *buff = NULL;
-    asprintf(&buff, "Undefined symbol '%s'", obj->symbol.name);
+    asprintf(&buff, "Undefined symbol '%s'", symbol->symbol.name);
     error(buff);
   }
 
@@ -624,7 +625,7 @@ Object *eval_list(Object *obj, Object *env) {
     return obj;
 
   if (car(obj) == s_define) {
-    Object *cell = obj; // car(cell) should be symbol named define
+    Object *cell = obj; // car(cell) should be symbol named 'define'
 
     cell = cdr(cell);
     Object *cell_symbol = car(cell);
@@ -650,7 +651,7 @@ Object *eval_list(Object *obj, Object *env) {
     }
   } else if (car(obj) == s_setq) {
     //printf("SETQ\n");
-    Object *cell = obj; // car(cell) should be symbol named setq
+    Object *cell = obj; // car(cell) should be symbol named 'setq'
     //print(cell);
 
     cell = cdr(cell);
