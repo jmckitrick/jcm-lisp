@@ -2,7 +2,7 @@
     ((lambda (outer)
        (lambda (inner)
          outer))
-     1
-     ))
+     1)
+  )
 
 (scope 3)

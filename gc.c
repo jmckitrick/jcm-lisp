@@ -17,29 +17,29 @@ void print_pins() {
   printf("\nPinned variables:\n");
   struct PinnedVariable **v;
   for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
-    printf("Pinned variable: %p %p\n", *v, (*v)->variable);
+    printf("Pinned variable: %p %p\n", *v, (*v)->var_addr);
   }
   printf("Done.\n");
 }
 
-void pin_variable(void **obj) {
+void pin_variable(void **var_addr) {
 #ifdef GC_PIN_DEBUG
   printf("Pin\n");
-  printf("> obj %p\n", obj);
+  printf("> var_addr %p\n", var_addr);
 #endif //GC_PIN_DEBUG
 
   struct PinnedVariable *pinned_var = NULL;
   pinned_var = calloc(1, sizeof(struct PinnedVariable));
   assert(pinned_var != NULL);
 
-  pinned_var->variable = (void **)obj;
+  pinned_var->var_addr = (void **)var_addr;
   pinned_var->inUse = 1;
   pinned_var->next = pinned_variables;
 
 #ifdef GC_PIN_DEBUG_X
   printf("Pinned variable         = %p\n", pinned_var);
   //printf("Pinned variable         = ");
-  //print((struct Object *)pinned_var->variable);
+  //print((struct Object *)pinned_var->var_addr);
   printf("Pinned variables before = %p\n", pinned_variables);
 #endif //GC_PIN_DEBUG_X
 
@@ -51,34 +51,34 @@ void pin_variable(void **obj) {
 #endif //GC_PIN_DEBUG_X
 }
 #else
-void pin_variable(void **obj) { // void
+void pin_variable(void **var_addr) { // void
   //printf("PIN\n");
 }
 #endif // GC_PIN
 
 #ifdef GC_PIN
-void unpin_variable(void **obj) {
+void unpin_variable(void **var_addr) {
 #ifdef GC_PIN_DEBUG
-  printf("< obj %p\n", obj);
+  printf("< var_addr %p\n", var_addr);
 #endif //GC_PIN_DEBUG
 
-  struct PinnedVariable **v = NULL;
-  for (v = &pinned_variables; *v != NULL; v = &(*v)->next) {
+  struct PinnedVariable **curr_pv_addr = NULL;
+  for (curr_pv_addr = &pinned_variables; *curr_pv_addr != NULL; curr_pv_addr = &(*curr_pv_addr)->next) {
 
-    if ((*v)->variable == (void **)obj) {
+    if ((*curr_pv_addr)->var_addr == (void **)var_addr) {
 
 #ifdef GC_PIN_DEBUG
       printf("Containing: ");
-      print(*obj);
+      print(*var_addr);
 
-      if ((*v)->inUse != 1) {
-        printf("\nIn use? %d\n", (*v)->inUse);
+      if ((*curr_pv_addr)->inUse != 1) {
+        printf("\nIn use? %d\n", (*curr_pv_addr)->inUse);
       }
 #endif
-      struct PinnedVariable *next = (*v)->next;
-      (*v)->inUse = 0;
-      free(*v);
-      pinned_variables = next; pinned_variable_count--;
+      struct PinnedVariable *next_pv = (*curr_pv_addr)->next;
+      (*curr_pv_addr)->inUse = 0;
+      free(*curr_pv_addr);
+      pinned_variables = next_pv; pinned_variable_count--;
 #ifdef GC_PIN_DEBUG
       printf("\nUnpin\n");
       printf("Pinned variable count %d\n", pinned_variable_count);
@@ -89,9 +89,9 @@ void unpin_variable(void **obj) {
   assert(0);
 }
 #else
-void unpin_variable(void **obj) { // void
-  //printf("UNPIN %p\n", obj);
-  //print(obj);
+void unpin_variable(void **var_addr) { // void
+  //printf("UNPIN %p\n", var_addr);
+  //print(var_addr);
   //printf("\n");
 }
 #endif // GC_PIN
@@ -105,7 +105,7 @@ void mark(Object *obj) {
     return;
   }
 #ifdef GC_DEBUG_XX
-  void *temp = obj; printf("\nMarking %p\n", temp);
+  Object *temp = obj; printf("\nMarking %p\n", temp);
 #endif // GC_DEBUG_XX
   if (obj->mark > 0) {
 #ifdef GC_DEBUG_XX
@@ -332,14 +332,15 @@ void gc() {
 
     printf("Pointer to pointer to variable: %p\n", v);
     printf("Pointer to variable: %p\n", *v);
-    printf("Pointer to pointer to object: %p\n", (*v)->variable);
-    printf("Pointer to object: %p\n", *(*v)->variable);
+    printf("Pointer to pointer to object: %p\n", (*v)->var_addr);
+    printf("Pointer to object: %p\n", *(*v)->var_addr);
 
-    void *tempObj = (void *)(*(*v)->variable);
+    //void *tempObj = (void *)(*(*v)->var_addr);
+    Object *tempObj = (Object *)(*(*v)->var_addr);
     if (tempObj != NULL) {
       print(tempObj);
       mark(tempObj);
-      print(*(*v)->variable);
+      print(*(*v)->var_addr);
       printf("\nMarked pinned var\n");
     }
   }

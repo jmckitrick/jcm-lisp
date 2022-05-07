@@ -80,7 +80,6 @@ struct Object {
 
 void print(Object *);
 
-Object *symbols;    /* linked list */
 Object *s_quote;
 Object *s_define;
 Object *s_setq;
@@ -89,6 +88,7 @@ Object *s_if;
 Object *s_t;
 Object *s_lambda;
 
+Object *symbols;    /* linked list */
 Object *top_env;
 
 #define caar(obj)    car(car(obj))
