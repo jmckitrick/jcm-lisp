@@ -39,17 +39,17 @@ int current_mark;
 
 #ifdef GC_PIN
 struct PinnedVariable {
-  void **var_addr;
+  void **var;
   struct PinnedVariable *next;
   int inUse;
 };
 
-struct PinnedVariable *pinned_variables;
+struct PinnedVariable *pv_head;
 
 #endif //GC_PIN
 
-void pin_variable(void **var_addr);
-void unpin_variable(void **var_addr);
+void pin_variable(void **var);
+void unpin_variable(void **var);
 
 #ifdef GC_ENABLED
 void *alloc_Object();
