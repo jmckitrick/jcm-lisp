@@ -34,7 +34,7 @@ typedef enum {
 } obj_type;
 
 typedef struct Object Object;
-typedef struct Object *primitive_fn(struct Object *);
+typedef struct Object *primitive_fn(Object *);
 
 struct Fixnum {
   int value;
@@ -88,8 +88,8 @@ Object *s_if;
 Object *s_t;
 Object *s_lambda;
 
-Object *symbols;    /* linked list */
-Object *top_env;
+Object *symbols;    /* simple linked list */
+Object *top_env;    /* list of lists */
 
 #define caar(obj)    car(car(obj))
 #define cadr(obj)    car(cdr(obj))

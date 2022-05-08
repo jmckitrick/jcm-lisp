@@ -63,22 +63,22 @@ void unpin_variable(void **var) {
   printf("< var %p\n", var);
 #endif //GC_PIN_DEBUG
 
-  struct PinnedVariable **pv = NULL;
-  for (pv = &pv_head; *pv != NULL; pv = &(*pv)->next) {
+  struct PinnedVariable *pv = NULL;
+  for (pv = pv_head; pv != NULL; pv = pv->next) {
 
-    if ((*pv)->var == var) {
+    if (pv->var == var) {
 
 #ifdef GC_PIN_DEBUG
       printf("Containing: ");
       print(*var);
 
-      if ((*pv)->inUse != 1) {
-        printf("\nIn use? %d\n", (*pv)->inUse);
+      if (pv->inUse != 1) {
+        printf("\nIn use? %d\n", pv->inUse);
       }
 #endif
-      struct PinnedVariable *next_pv = (*pv)->next;
-      (*pv)->inUse = 0;
-      free(*pv);
+      struct PinnedVariable *next_pv = pv->next;
+      pv->inUse = 0;
+      free(pv);
       pv_head = next_pv;
       pv_count--;
 #ifdef GC_PIN_DEBUG
