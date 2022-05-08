@@ -323,26 +323,26 @@ void gc() {
 
 #ifdef GC_PIN
   printf("\n-------- Mark pins:\n");
-  struct PinnedVariable **v = NULL;
-  v = &pv_head;
+  struct PinnedVariable *v = NULL;
+  v = pv_head;
 
-  for (v = &pv_head; *v != NULL; v = &(*v)->next) {
-    if ((*v)->inUse != 1) {
-      printf("\nIn use? %d\n", (*v)->inUse);
+  for (v = pv_head; v != NULL; v = v->next) {
+    if (v->inUse != 1) {
+      printf("\nIn use? %d\n", v->inUse);
       continue;
     }
 
-    printf("Pointer to pointer to variable: %p\n", v);
-    printf("Pointer to variable: %p\n", *v);
-    printf("Pointer to pointer to object: %p\n", (*v)->var);
-    printf("Pointer to object: %p\n", *(*v)->var);
+    //printf("Pointer to pointer to variable: %p\n", v);
+    //printf("Pointer to variable: %p\n", *v);
+    //printf("Pointer to pointer to object: %p\n", (*v)->var);
+    //printf("Pointer to object: %p\n", *(*v)->var);
 
     //void *tempObj = (void *)(*(*v)->var);
-    Object *tempObj = (Object *)(*(*v)->var);
+    Object *tempObj = (Object *)(v->var);
     if (tempObj != NULL) {
       print(tempObj);
       mark(tempObj);
-      print(*(*v)->var);
+      print((Object *)v->var);
       printf("\nMarked pinned var\n");
     }
   }
