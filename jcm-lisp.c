@@ -643,6 +643,7 @@ Object *eval_list(Object *obj, Object *env) {
       print(cell_symbol);
       printf("\n");
       Object *var = cell_symbol;
+
       return extend_top(var, val);
     } else {
       setcdr(pair, val);
@@ -850,7 +851,7 @@ Object *primitive_eq(Object *args) {
 }
 
 /* Set up object allocation space. */
-void init() {
+void init_mem() {
 
 #ifdef GC_ENABLED
   current_mark = 1;
@@ -897,7 +898,7 @@ void run_code_tests() {
   printf("END CODE TESTS\n");
 }
 
-void run_file_tests(char *fname) {
+void run_test_file(char *fname) {
   printf("\n\n----------------------------------------BEGIN FILE TESTS: %s\n", fname);
 
   FILE *fp = fopen(fname, "r");
@@ -933,8 +934,36 @@ void run_file_tests(char *fname) {
   printf("END FILE TESTS\n");
 }
 
+void run_file_tests() {
+  run_test_file("./test/test0.lsp");
+  run_test_file("./test/test1.lsp");
+  run_test_file("./test/test2.lsp");
+  run_test_file("./test/test3.lsp");
+  run_test_file("./test/test4.lsp");
+  run_test_file("./test/test5.lsp");
+  run_test_file("./test/test6.lsp");
+  run_test_file("./test/testP.lsp");
+  run_test_file("./test/testP1.lsp");
+  run_test_file("./test/testP2.lsp");
+  run_test_file("./test/testP3.lsp");
+  run_test_file("./test/testQ.lsp");
+  run_test_file("./test/testQ2.lsp");
+  run_test_file("./test/testQ3.lsp");
+  run_test_file("./test/testR.lsp");
+  run_test_file("./test/testR1.lsp");
+  run_test_file("./test/testR2.lsp");
+  run_test_file("./test/testS.lsp");
+  run_test_file("./test/testT.lsp");
+  run_test_file("./test/testU.lsp");
+  run_test_file("./test/testV.lsp");
+  run_test_file("./test/testW.lsp");
+  run_test_file("./test/testX.lsp");
+  run_test_file("./test/testY.lsp");
+  run_test_file("./test/testZ.lsp");
+}
+
 int main(int argc, char* argv[]) {
-  init();
+  init_mem();
 
   /* Make symbol 'nil' (end of list). */
   s_nil = make_symbol("nil");
@@ -952,7 +981,7 @@ int main(int argc, char* argv[]) {
   s_setq = intern_symbol("setq");
   s_if = intern_symbol("if");
 
-  /* Create top level environment (list of lists).
+  /* Create top level environment (list of lists?).
    * Head is empty list and should never change,
    * so global references to top_env are stable
    * and changing top_env does not require
@@ -976,31 +1005,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef FILE_TEST
-  run_file_tests("./test/test0.lsp");
-  run_file_tests("./test/test1.lsp");
-  run_file_tests("./test/test2.lsp");
-  run_file_tests("./test/test3.lsp");
-  run_file_tests("./test/test4.lsp");
-  run_file_tests("./test/test5.lsp");
-  run_file_tests("./test/test6.lsp");
-  run_file_tests("./test/testP.lsp");
-  run_file_tests("./test/testP1.lsp");
-  run_file_tests("./test/testP2.lsp");
-  run_file_tests("./test/testP3.lsp");
-  run_file_tests("./test/testQ.lsp");
-  run_file_tests("./test/testQ2.lsp");
-  run_file_tests("./test/testQ3.lsp");
-  run_file_tests("./test/testR.lsp");
-  run_file_tests("./test/testR1.lsp");
-  run_file_tests("./test/testR2.lsp");
-  run_file_tests("./test/testS.lsp");
-  run_file_tests("./test/testT.lsp");
-  run_file_tests("./test/testU.lsp");
-  run_file_tests("./test/testV.lsp");
-  run_file_tests("./test/testW.lsp");
-  run_file_tests("./test/testX.lsp");
-  run_file_tests("./test/testY.lsp");
-  run_file_tests("./test/testZ.lsp");
+  run_file_tests();
 #endif
 
 #ifdef REPL
