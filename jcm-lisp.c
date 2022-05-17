@@ -186,9 +186,6 @@ Object *make_proc(Object *vars, Object *body, Object *env) {
   return obj;
 }
 
-/* Walk linked list of symbols
- * for one matching name.
- */
 Object *lookup_symbol(char *name) {
   Object *cell = symbols;
   Object *sym;
@@ -241,25 +238,14 @@ Object *intern_symbol(char *name) {
 
 Object *assoc(Object *symbol, Object *env) {
   if (env != s_nil) {
-    /* printf("Assoc:\n"); */
-    /* printf("symbol:\n"); */
-    /* print(symbol); */
     Object *pair = car(env);
-    /* printf("pair:\n"); */
-    /* print(pair); */
-    /* printf("Assoc check '%s' vs '%s'\n", car(pair)->symbol.name, symbol->symbol.name); */
-    //printf("Assoc check '%s' vs '%s'\n", symbol->symbol.name, car(pair)->symbol.name);
-    /* printf("\nAssoc check %p vs %p\n", car(pair), symbol); */
     if (car(pair) == symbol) {
-      //printf("Found '%s'!\n", symbol->symbol.name);
       return pair;
     }
 
-    //printf("Still looking....\n");
     return assoc(symbol, cdr(env));
   }
 
-  printf("Not found:  '%s'\n", symbol->symbol.name);
   return NULL;
 }
 
@@ -509,11 +495,6 @@ void print_env(Object *env) {
   //printf("Done.\n");
 }
 
-
-/*
- * Set the tail of this env to a new list
- * with var and val at the head.
- */
 Object *extend_top(Object *var, Object *val) {
   Object *current_top = cdr(top_env);
   Object *updated_top = extend(current_top, var, val);
@@ -620,86 +601,102 @@ Object *eval_symbol(Object *symbol, Object *env) {
   return cdr(pair);
 }
 
+Object *subr_define(Object *obj, Object *env) {
+  Object *cell = obj; // car(cell) should be symbol named 'define'
+
+  cell = cdr(cell);
+  Object *cell_symbol = car(cell);
+
+  cell = cdr(cell);
+  Object *cell_value = car(cell);
+
+  Object *val = eval(cell_value, env);
+
+  // Check for existing binding?
+  Object *pair = assoc(cell_symbol, env);
+
+  if (pair == NULL) {
+    printf("Creating new binding: ");
+    print(cell_symbol);
+    printf("\n");
+    Object *var = cell_symbol;
+
+    return extend_top(var, val);
+  } else {
+    setcdr(pair, val);
+
+    return val;
+  }
+}
+
+Object *subr_setq(Object *obj, Object *env) {
+  //printf("SETQ\n");
+  Object *cell = obj; // car(cell) should be symbol named 'setq'
+  //print(cell);
+
+  cell = cdr(cell);
+  Object *cell_symbol = car(cell);
+  //print(cell_symbol);
+
+  cell = cdr(cell);
+  Object *cell_value = car(cell);
+  //print(cell_value);
+
+  Object *pair = assoc(cell_symbol, env);
+
+  if (pair == NULL)
+    error("SETQ failed to find symbol in env.");
+
+  Object *newval = eval(cell_value, env);
+
+  setcdr(pair, newval);
+
+  return newval;
+}
+
+Object *subr_if(Object *obj, Object *env) {
+  Object *cell = obj;
+
+  cell = cdr(cell);
+  Object *cell_condition = car(cell);
+
+  cell = cdr(cell);
+  Object *cell_true_branch = car(cell);
+
+  cell = cdr(cell);
+  Object *cell_false_branch = car(cell);
+
+  if (eval(cell_condition, env) != s_nil)
+    return eval(cell_true_branch, env);
+  else
+    return eval(cell_false_branch, env);
+}
+
+Object *subr_lambda(Object *obj, Object *env) {
+  Object *vars = cadr(obj);
+  Object *body = cddr(obj);
+
+  //printf("Create lambda with env:\n");
+  //print_env(env);
+  //printf("\n");
+  return make_proc(vars, body, env);
+}
+
 Object *eval_list(Object *obj, Object *env) {
   if (obj == s_nil)
     return obj;
 
+  /* builtins */
   if (car(obj) == s_define) {
-    Object *cell = obj; // car(cell) should be symbol named 'define'
-
-    cell = cdr(cell);
-    Object *cell_symbol = car(cell);
-
-    cell = cdr(cell);
-    Object *cell_value = car(cell);
-
-    Object *val = eval(cell_value, env);
-
-    // Check for existing binding?
-    Object *pair = assoc(cell_symbol, env);
-
-    if (pair == NULL) {
-      printf("Creating new binding: ");
-      print(cell_symbol);
-      printf("\n");
-      Object *var = cell_symbol;
-
-      return extend_top(var, val);
-    } else {
-      setcdr(pair, val);
-
-      return val;
-    }
+    return subr_define(obj, env);
   } else if (car(obj) == s_setq) {
-    //printf("SETQ\n");
-    Object *cell = obj; // car(cell) should be symbol named 'setq'
-    //print(cell);
-
-    cell = cdr(cell);
-    Object *cell_symbol = car(cell);
-    //print(cell_symbol);
-
-    cell = cdr(cell);
-    Object *cell_value = car(cell);
-    //print(cell_value);
-
-    Object *pair = assoc(cell_symbol, env);
-
-    if (pair == NULL)
-      error("SETQ failed to find symbol in env.");
-
-    Object *newval = eval(cell_value, env);
-
-    setcdr(pair, newval);
-
-    return newval;
+    return subr_setq(obj, env);
   } else if (car(obj) == s_if) {
-    Object *cell = obj;
-
-    cell = cdr(cell);
-    Object *cell_condition = car(cell);
-
-    cell = cdr(cell);
-    Object *cell_true_branch = car(cell);
-
-    cell = cdr(cell);
-    Object *cell_false_branch = car(cell);
-
-    if (eval(cell_condition, env) != s_nil)
-      return eval(cell_true_branch, env);
-    else
-      return eval(cell_false_branch, env);
-
+    return subr_if(obj, env);
   } else if (car(obj) == s_quote) {
     return cadr(obj);
   } else if (car(obj) == s_lambda) {
-    Object *vars = cadr(obj);
-    Object *body = cddr(obj);
-
-    //printf("Create lambda with env:\n");
-    //print_env(env);
-    //printf("\n");
-    return make_proc(vars, body, env);
+    return subr_lambda(obj, env);
   }
 
   /* This list is not a builtin, so treat it as a function call. */
@@ -965,13 +962,7 @@ void run_file_tests() {
 int main(int argc, char* argv[]) {
   init_mem();
 
-  /* Make symbol 'nil' (end of list). */
   s_nil = make_symbol("nil");
-
-  /* Create symbol table.   */
-  /*           'nil'   EOL  */
-  /*             |      |   */
-  /*             v      v   */
   symbols = cons(s_nil, s_nil);
 
   s_t = intern_symbol("t");
@@ -981,12 +972,6 @@ int main(int argc, char* argv[]) {
   s_setq = intern_symbol("setq");
   s_if = intern_symbol("if");
 
-  /* Create top level environment (list of lists?).
-   * Head is empty list and should never change,
-   * so global references to top_env are stable
-   * and changing top_env does not require
-   * returning a new head.
-   */
   top_env = cons(s_nil, cons(s_nil, s_nil));
 
   extend_top(intern_symbol("cons"), make_primitive(prim_cons));

@@ -89,7 +89,7 @@ Object *s_t;
 Object *s_lambda;
 
 Object *symbols;    /* simple linked list */
-Object *top_env;    /* list of lists */
+Object *top_env;    /* list of lists? */
 
 #define caar(obj)    car(car(obj))
 #define cadr(obj)    car(cdr(obj))
