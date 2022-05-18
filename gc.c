@@ -15,9 +15,9 @@ int pv_count = 0;
 
 void print_pins() {
   printf("\nPinned variables:\n");
-  struct PinnedVariable **v;
-  for (v = &pv_head; *v != NULL; v = &(*v)->next) {
-    printf("Pinned variable: %p %p\n", *v, (*v)->var);
+  struct PinnedVariable *pv;
+  for (pv = pv_head; pv != NULL; pv = pv->next) {
+    printf("Pinned variable: %p %p\n", pv, pv->var);
   }
   printf("Done.\n");
 }
@@ -70,7 +70,8 @@ void unpin_variable(void **var) {
 
 #ifdef GC_PIN_DEBUG
       printf("Containing: ");
-      print(*var);
+      print(pv->var);
+      //print(*var);
 
       if (pv->inUse != 1) {
         printf("\nIn use? %d\n", pv->inUse);
@@ -79,6 +80,7 @@ void unpin_variable(void **var) {
       struct PinnedVariable *next_pv = pv->next;
       pv->inUse = 0;
       free(pv);
+
       pv_head = next_pv;
       pv_count--;
 #ifdef GC_PIN_DEBUG
@@ -188,7 +190,9 @@ int is_active(void *needle) {
 }
 
 void sweep() {
-  int counted = 0, kept = 0, swept = 0;
+  int counted = 0;
+  int kept = 0;
+  int swept = 0;
   int cells = 0;
 
   for (int i = 0; i < MAX_ALLOC_SIZE; i++) {
@@ -309,6 +313,32 @@ void check_mem() {
   }
 }
 
+void mark_pins(struct PinnedVariable *pvs) {
+  struct PinnedVariable *pv = NULL;
+  pv = pvs;
+
+  for (pv = pvs; pv != NULL; pv = pv->next) {
+    if (pv->inUse != 1) {
+      printf("\nIn use? %d\n", pv->inUse);
+      continue;
+    }
+
+    //printf("Pointer to pointer to variable: %p\n", v);
+    //printf("Pointer to variable: %p\n", *v);
+    //printf("Pointer to pointer to object: %p\n", (*v)->var);
+    //printf("Pointer to object: %p\n", *(*v)->var);
+
+    //void *tempObj = (void *)(*(*v)->var);
+    Object *obj = (Object *)(pv->var);
+    if (obj != NULL) {
+      print(obj);
+      mark(obj);
+      print((Object *)pv->var);
+      printf("\nMarked pinned var\n");
+    }
+  }
+}
+
 void gc() {
 
   printf("\nGC v----------------------------------------v\n");
@@ -323,29 +353,7 @@ void gc() {
 
 #ifdef GC_PIN
   printf("\n-------- Mark pins:\n");
-  struct PinnedVariable *v = NULL;
-  v = pv_head;
-
-  for (v = pv_head; v != NULL; v = v->next) {
-    if (v->inUse != 1) {
-      printf("\nIn use? %d\n", v->inUse);
-      continue;
-    }
-
-    //printf("Pointer to pointer to variable: %p\n", v);
-    //printf("Pointer to variable: %p\n", *v);
-    //printf("Pointer to pointer to object: %p\n", (*v)->var);
-    //printf("Pointer to object: %p\n", *(*v)->var);
-
-    //void *tempObj = (void *)(*(*v)->var);
-    Object *tempObj = (Object *)(v->var);
-    if (tempObj != NULL) {
-      print(tempObj);
-      mark(tempObj);
-      print((Object *)v->var);
-      printf("\nMarked pinned var\n");
-    }
-  }
+  mark_pins(pv_head);
 #endif // GC_PIN
 #endif // GC_MARK
 
@@ -365,8 +373,8 @@ void *find_next_free() {
     obj = free_list[i];
 
     if (obj != NULL) {
-      free_list[i] = NULL;
       active_list[i] = obj;
+      free_list[i] = NULL;
       break;
     }
   }

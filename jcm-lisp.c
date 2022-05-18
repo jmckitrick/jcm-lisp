@@ -80,10 +80,10 @@ void setcdr(Object *obj, Object *val) {
   if (obj == NULL)
     error("Cannot set NULL cdr");
 
-  if (obj->cell.cdr != NULL &&
-      obj->cell.cdr != s_nil) {
-    //printf("Changing %p -> cdr %p to %p\n", obj, obj->cell.cdr, val);
-  }
+  /* if (obj->cell.cdr != NULL && */
+  /*     obj->cell.cdr != s_nil) { */
+  /*   printf("Changing %p -> cdr %p to %p\n", obj, obj->cell.cdr, val); */
+  /* } */
 
   obj->cell.cdr = val;
 }
@@ -109,7 +109,6 @@ Object *make_cell() {
 
   pin_variable((void **)&obj);
   obj = new_Object();
-
   obj->type = CELL;
   obj->cell.car = s_nil;
   obj->cell.cdr = s_nil;
@@ -560,12 +559,10 @@ Object *apply(Object *obj, Object *args, Object *env) {
   //print_env(env);
 
   if (is_primitive(obj)) {
-    //printf("Boring prim\n");
     return (*obj->primitive.fn)(args);
   }
 
   if (is_proc(obj)) {
-    //printf("Look out!\n");
     return progn(obj->proc.body, multiple_extend_env(obj->proc.env, obj->proc.vars, args));
   }
 
