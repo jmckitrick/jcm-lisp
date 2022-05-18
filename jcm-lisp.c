@@ -741,15 +741,16 @@ Object *eval(Object *obj, Object *env) {
 }
 
 void print_string(Object *obj) {
-  char *str = obj->str.text;
-  int len = strlen(str);
-  int i = 0;
+  /* char *str = obj->str.text; */
+  /* int len = strlen(str); */
+  /* int i = 0; */
 
   putchar('"');
-  while (i < len) {
-    putc(*str++, stdout);
-    i++;
-  }
+  /* while (i < len) { */
+  /*   putc(*str++, stdout); */
+  /*   i++; */
+  /* } */
+  printf("%s", obj->str.text);
 
   putchar('"');
 }
