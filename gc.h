@@ -40,8 +40,8 @@ int current_mark;
 #ifdef GC_PIN
 struct PinnedVariable {
   void **var;
+  int in_use;
   struct PinnedVariable *next;
-  int inUse;
 };
 
 struct PinnedVariable *pv_head;

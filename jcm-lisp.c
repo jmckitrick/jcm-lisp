@@ -116,17 +116,6 @@ Object *make_cell() {
   return obj;
 }
 
-Object *cons(Object *car, Object *cdr) {
-  Object *obj = NULL;
-
-  pin_variable((void **)&obj);
-  obj = make_cell();
-  obj->cell.car = car;
-  obj->cell.cdr = cdr;
-  unpin_variable((void **)&obj);
-  return obj;
-}
-
 Object *make_string(char *str) {
   Object *obj = NULL;
 
@@ -182,6 +171,17 @@ Object *make_proc(Object *vars, Object *body, Object *env) {
   obj->proc.env = env;
   unpin_variable((void **)&obj);
   //printf("Made proc.\n");
+  return obj;
+}
+
+Object *cons(Object *car, Object *cdr) {
+  Object *obj = NULL;
+
+  pin_variable((void **)&obj);
+  obj = make_cell();
+  obj->cell.car = car;
+  obj->cell.cdr = cdr;
+  unpin_variable((void **)&obj);
   return obj;
 }
 

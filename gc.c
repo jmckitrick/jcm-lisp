@@ -33,7 +33,7 @@ void pin_variable(void **var) {
   assert(pv != NULL);
 
   pv->var = var;
-  pv->inUse = 1;
+  pv->in_use = 1;
   pv->next = pv_head;
 
 #ifdef GC_PIN_DEBUG_X
@@ -73,12 +73,12 @@ void unpin_variable(void **var) {
       print(pv->var);
       //print(*var);
 
-      if (pv->inUse != 1) {
-        printf("\nIn use? %d\n", pv->inUse);
+      if (pv->in_use != 1) {
+        printf("\nIn use? %d\n", pv->in_use);
       }
 #endif
       struct PinnedVariable *next_pv = pv->next;
-      pv->inUse = 0;
+      pv->in_use = 0;
       free(pv);
 
       pv_head = next_pv;
@@ -216,18 +216,18 @@ void sweep() {
         case STRING:
           memset(obj->str.text, 0, strlen(obj->str.text));
           free(obj->str.text);
-          printf("\n");
+          //printf("\n");
           break;
         case SYMBOL:
           memset(obj->symbol.name, 0, strlen(obj->symbol.name));
           free(obj->symbol.name);
-          printf("\n");
+          //printf("\n");
           break;
         case CELL:
           cells++;
           break;
         default:
-          printf("\n");
+          //printf("\n");
           break;
       }
 
@@ -318,18 +318,19 @@ void mark_pins(struct PinnedVariable *pvs) {
   pv = pvs;
 
   for (pv = pvs; pv != NULL; pv = pv->next) {
-    if (pv->inUse != 1) {
-      printf("\nIn use? %d\n", pv->inUse);
-      continue;
-    }
+    /* if (pv->in_use != 1) { */
+    /*   printf("\nIn use? %d\n", pv->in_use); */
+    /*   continue; */
+    /* } */
 
-    //printf("Pointer to pointer to variable: %p\n", v);
-    //printf("Pointer to variable: %p\n", *v);
-    //printf("Pointer to pointer to object: %p\n", (*v)->var);
-    //printf("Pointer to object: %p\n", *(*v)->var);
+    printf("Pointer to pointer to variable: %p\n", pv);
+    //printf("Pointer to struct pinned variable: %p\n", *pv);
+    //printf("Pointer to variable: %p\n", (PinnedVariable *)*pv);
+    printf("Pointer to pointer to object: %p\n", pv->var);
+    printf("Pointer to object: %p\n", (Object *)pv->var);
 
     //void *tempObj = (void *)(*(*v)->var);
-    Object *obj = (Object *)(pv->var);
+    Object *obj = (Object *)pv->var;
     if (obj != NULL) {
       print(obj);
       mark(obj);

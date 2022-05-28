@@ -18,9 +18,9 @@
 #include <assert.h>
 #include <sys/errno.h>
 
-//#define CODE_TEST
-//#define FILE_TEST
-#define REPL
+#define CODE_TEST
+#define FILE_TEST
+//#define REPL
 
 typedef enum {
   UNKNOWN = 0,
