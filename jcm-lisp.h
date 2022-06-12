@@ -18,19 +18,19 @@
 #include <assert.h>
 #include <sys/errno.h>
 
-#define CODE_TEST
+//#define CODE_TEST
 #define FILE_TEST
 //#define REPL
 
 typedef enum {
-  UNKNOWN = 0,
-  NIL = 1,
-  FIXNUM = 2,
-  STRING = 3,
-  SYMBOL = 4,
-  CELL = 5,
+  UNKNOWN   = 0,
+  NIL       = 1,
+  FIXNUM    = 2,
+  STRING    = 3,
+  SYMBOL    = 4,
+  CELL      = 5,
   PRIMITIVE = 6,
-  PROC = 7
+  PROC      = 7
 } obj_type;
 
 typedef struct Object Object;

@@ -406,6 +406,7 @@ Object *read_lisp(FILE *in) {
   } else if (c == ';') {
     skip_comment(in);
   } else if (c == EOF) {
+    unpin_variable((void **)&obj);
 #ifdef REPL
     exit(0);
 #else
@@ -877,18 +878,41 @@ void run_code_tests() {
   Object *obj2 = NULL;
   pin_variable((void **)&obj2);
   obj2 = new_Object();
-  obj2->type = NIL;
+  obj2->type = FIXNUM;
 
   Object *obj3 = NULL;
   pin_variable((void **)&obj3);
   obj3 = new_Object();
-  obj3->type = NIL;
+  obj3->type = CELL;
 
-  gc();
+  Object *obj4 = NULL;
+  pin_variable((void **)&obj4);
+  obj4 = new_Object();
+  obj4->type = NIL;
 
-  unpin_variable((void **)&obj3);
+  Object *obj5 = NULL;
+  pin_variable((void **)&obj5);
+  obj5 = new_Object();
+  obj5->type = FIXNUM;
+
+  Object *obj6 = NULL;
+  pin_variable((void **)&obj6);
+  obj6 = new_Object();
+  obj6->type = CELL;
+
+  //gc();
+
   unpin_variable((void **)&obj2);
   unpin_variable((void **)&obj1);
+
+  //gc();
+
+  unpin_variable((void **)&obj3);
+  unpin_variable((void **)&obj5);
+  unpin_variable((void **)&obj4);
+  unpin_variable((void **)&obj6);
+
+  gc();
 
   printf("END CODE TESTS\n");
 }
@@ -926,7 +950,6 @@ void run_test_file(char *fname) {
   unpin_variable((void **)&result);
 
   fclose(fp);
-  printf("END FILE TESTS\n");
 }
 
 void run_file_tests() {
@@ -955,6 +978,9 @@ void run_file_tests() {
   run_test_file("./test/testX.lsp");
   run_test_file("./test/testY.lsp");
   run_test_file("./test/testZ.lsp");
+
+  gc();
+  printf("END FILE TESTS\n");
 }
 
 int main(int argc, char* argv[]) {

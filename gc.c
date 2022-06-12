@@ -33,7 +33,6 @@ void pin_variable(void **var) {
   assert(pv != NULL);
 
   pv->var = var;
-  pv->in_use = 1;
   pv->next = pv_head;
 
 #ifdef GC_PIN_DEBUG_X
@@ -63,26 +62,28 @@ void unpin_variable(void **var) {
   printf("< var %p\n", var);
 #endif //GC_PIN_DEBUG
 
-  struct PinnedVariable *pv = NULL;
-  for (pv = pv_head; pv != NULL; pv = pv->next) {
+  struct PinnedVariable *curr = NULL;
+  struct PinnedVariable *prev = NULL;
 
-    if (pv->var == var) {
+  for (curr = pv_head; curr != NULL; prev = curr, curr = curr->next) {
+
+    if (curr->var == var) {
 
 #ifdef GC_PIN_DEBUG
       printf("Containing: ");
-      print(pv->var);
+      print(curr->var);
       //print(*var);
 
-      if (pv->in_use != 1) {
-        printf("\nIn use? %d\n", pv->in_use);
-      }
 #endif
-      struct PinnedVariable *next_pv = pv->next;
-      pv->in_use = 0;
-      free(pv);
 
-      pv_head = next_pv;
+      if (prev)
+        prev->next = curr->next;
+      else
+        pv_head = curr->next;
+
+      free(curr);
       pv_count--;
+
 #ifdef GC_PIN_DEBUG
       printf("\nUnpin\n");
       printf("Pinned variable count %d\n", pv_count);
@@ -90,7 +91,8 @@ void unpin_variable(void **var) {
       return;
     }
   }
-  assert(0);
+  printf("\nPinned variable not found.\n");
+  //assert(0);
 }
 #else
 void unpin_variable(void **var) { // void
@@ -318,24 +320,17 @@ void mark_pins(struct PinnedVariable *pvs) {
   pv = pvs;
 
   for (pv = pvs; pv != NULL; pv = pv->next) {
-    /* if (pv->in_use != 1) { */
-    /*   printf("\nIn use? %d\n", pv->in_use); */
-    /*   continue; */
-    /* } */
+    printf("pv: %p\n", pv);
+    printf("pv Object: %p\n", pv->var);
 
-    printf("Pointer to pointer to variable: %p\n", pv);
-    //printf("Pointer to struct pinned variable: %p\n", *pv);
-    //printf("Pointer to variable: %p\n", (PinnedVariable *)*pv);
-    printf("Pointer to pointer to object: %p\n", pv->var);
-    printf("Pointer to object: %p\n", (Object *)pv->var);
-
-    //void *tempObj = (void *)(*(*v)->var);
     Object *obj = (Object *)pv->var;
-    if (obj != NULL) {
+    if (obj == NULL) {
+      printf("\nNULL Object\n");
+    } else {
       print(obj);
       mark(obj);
       print((Object *)pv->var);
-      printf("\nMarked pinned var\n");
+      printf("\nMarked pv\n");
     }
   }
 }
@@ -364,6 +359,7 @@ void gc() {
   check_mem();
 #endif // GC_SWEEP
 
+  printf("\nPinned variables: %d\n", pv_count);
   printf("\nGC ^----------------------------------------^\n");
 }
 
