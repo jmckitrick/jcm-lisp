@@ -382,11 +382,20 @@ Object *read_number(FILE *in) {
 // XXX Review these: strchr, strdup, strcmp
 // XXX Use these: strspn, atoi
 Object *read_lisp(FILE *in) {
-  Object *obj = s_nil;
-  pin_variable((void **)&obj);
-
   skip_whitespace(in);
   char c = getc(in);
+
+  if (c == EOF) {
+#ifdef REPL
+    exit(0);
+#else
+    printf("EOL\n");
+    return NULL;
+#endif
+  }
+
+  Object *obj = s_nil;
+  pin_variable((void **)&obj);
 
   if (c == '\'') {
     obj = cons(s_quote, cons(read_lisp(in), s_nil));
@@ -405,14 +414,6 @@ Object *read_lisp(FILE *in) {
     ungetc(c, in);
   } else if (c == ';') {
     skip_comment(in);
-  } else if (c == EOF) {
-    unpin_variable((void **)&obj);
-#ifdef REPL
-    exit(0);
-#else
-    printf("EOL\n");
-    return NULL;
-#endif
   }
 
   unpin_variable((void **)&obj);

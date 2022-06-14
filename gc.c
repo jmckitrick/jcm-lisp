@@ -73,7 +73,6 @@ void unpin_variable(void **var) {
       printf("Containing: ");
       print(curr->var);
       //print(*var);
-
 #endif
 
       if (prev)
