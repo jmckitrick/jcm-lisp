@@ -868,6 +868,33 @@ void init_mem() {
 #endif
 }
 
+void init_symbols() {
+  s_nil = make_symbol("nil");
+  symbols = cons(s_nil, s_nil);
+
+  s_t = intern_symbol("t");
+  s_lambda = intern_symbol("lambda");
+  s_define = intern_symbol("define");
+  s_quote = intern_symbol("quote");
+  s_setq = intern_symbol("setq");
+  s_if = intern_symbol("if");
+}
+
+void init_env() {
+  top_env = cons(s_nil, cons(s_nil, s_nil));
+
+  extend_top(intern_symbol("cons"), make_primitive(prim_cons));
+  extend_top(intern_symbol("car"), make_primitive(prim_car));
+  extend_top(intern_symbol("cdr"), make_primitive(prim_cdr));
+
+  extend_top(intern_symbol("eq"), make_primitive(primitive_eq));
+
+  extend_top(intern_symbol("+"), make_primitive(primitive_add));
+  extend_top(intern_symbol("-"), make_primitive(primitive_sub));
+  extend_top(intern_symbol("*"), make_primitive(primitive_mul));
+  extend_top(intern_symbol("/"), make_primitive(primitive_div));
+}
+
 void run_code_tests() {
   printf("\n\nBEGIN CODE TESTS\n");
 
@@ -984,41 +1011,7 @@ void run_file_tests() {
   printf("END FILE TESTS\n");
 }
 
-int main(int argc, char* argv[]) {
-  init_mem();
-
-  s_nil = make_symbol("nil");
-  symbols = cons(s_nil, s_nil);
-
-  s_t = intern_symbol("t");
-  s_lambda = intern_symbol("lambda");
-  s_define = intern_symbol("define");
-  s_quote = intern_symbol("quote");
-  s_setq = intern_symbol("setq");
-  s_if = intern_symbol("if");
-
-  top_env = cons(s_nil, cons(s_nil, s_nil));
-
-  extend_top(intern_symbol("cons"), make_primitive(prim_cons));
-  extend_top(intern_symbol("car"), make_primitive(prim_car));
-  extend_top(intern_symbol("cdr"), make_primitive(prim_cdr));
-
-  extend_top(intern_symbol("eq"), make_primitive(primitive_eq));
-
-  extend_top(intern_symbol("+"), make_primitive(primitive_add));
-  extend_top(intern_symbol("-"), make_primitive(primitive_sub));
-  extend_top(intern_symbol("*"), make_primitive(primitive_mul));
-  extend_top(intern_symbol("/"), make_primitive(primitive_div));
-
-#ifdef CODE_TEST
-  run_code_tests();
-#endif
-
-#ifdef FILE_TEST
-  run_file_tests();
-#endif
-
-#ifdef REPL
+void do_repl() {
   printf("\nWelcome to JCM-LISP. Use ctrl-c to exit.\n");
 
   while (1) {
@@ -1030,6 +1023,23 @@ int main(int argc, char* argv[]) {
     print(result);
     printf("\n");
   }
+}
+
+int main(int argc, char* argv[]) {
+  init_mem();
+  init_symbols();
+  init_env();
+
+#ifdef CODE_TEST
+  run_code_tests();
+#endif
+
+#ifdef FILE_TEST
+  run_file_tests();
+#endif
+
+#ifdef REPL
+  do_repl();
 #endif
 
   return 0;
